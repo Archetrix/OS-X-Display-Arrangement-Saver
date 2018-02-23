@@ -126,10 +126,11 @@ void printInfo() {
         NSString* serial = getScreenSerial(screen);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
+        NSInteger rotation = CGDisplayRotation(screenNumber);
         printf("  Display %li\n", (long)screenNumber);
         printf("    Serial:    %s\n", [serial UTF8String]);
         printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
-        printf("    Dimension: {%i, %i}\n", (int)size.width, (int)size.height);
+        printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
     }
 }
 
@@ -141,7 +142,8 @@ void saveArrangement(NSString* savePath) {
         NSString* serial = getScreenSerial(screen);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
-        NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], nil];
+        NSInteger rotation = CGDisplayRotation(getDisplayID(screen));
+        NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], rotation, nil];
         [dict setObject:a forKey:serial];
     }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {

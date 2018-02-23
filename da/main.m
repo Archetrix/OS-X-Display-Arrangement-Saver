@@ -189,8 +189,11 @@ bool checkDisplayAvailability(NSArray* displaySerials) {
     for (NSScreen* screen in screens) {
         NSString* serial = getScreenSerial(screen);
         if (![displaySerials containsObject:serial]) {
+            CGDirectDisplayID displayID = getDisplayID(screen);
+            if (![displaySerials containsObject:[NSString stringWithFormat:@"%u",displayID]]) {
             return false;
         }
+    }
     }
     return true;
 }

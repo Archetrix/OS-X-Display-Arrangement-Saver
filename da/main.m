@@ -138,7 +138,8 @@ void saveArrangement(NSString* savePath) {
     for (NSScreen* screen in screens) {
         NSString* serial = getScreenSerial(screen);
         NSPoint position = getScreenPosition(screen);
-        NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y], nil];
+        NSSize size = [screen frame].size;
+        NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], nil];
         [dict setObject:a forKey:serial];
     }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {
@@ -191,9 +192,9 @@ bool checkDisplayAvailability(NSArray* displaySerials) {
         if (![displaySerials containsObject:serial]) {
             CGDirectDisplayID displayID = getDisplayID(screen);
             if (![displaySerials containsObject:[NSString stringWithFormat:@"%u",displayID]]) {
-            return false;
+                return false;
+            }
         }
-    }
     }
     return true;
 }

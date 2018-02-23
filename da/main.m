@@ -179,9 +179,33 @@ void loadArrangement(NSString* savePath) {
             xy = [dict objectForKey:[NSString stringWithFormat:@"%u",displayID]];
         }
         int32_t x = [(NSNumber*)xy[0] intValue];
-        int32_t y = [(NSNumber*)xy[1] doubleValue];
+        int32_t y = [(NSNumber*)xy[1] intValue];
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
         CGConfigureDisplayOrigin(config, displayID, x, -1*y); 
+
+        IOOptionBits options;
+        // TODO: CGDisplayIOServicePort is deprecated ...
+        // alternative aproach basics: https://stackoverflow.com/questions/2079956/programatically-trigger-detect-displays
+        // Howto identify display from serviceIterator loop ... requires investigation.
+        io_service_t service = CGDisplayIOServicePort(displayID);
+        if (service) {
+            switch ([(NSNumber*)xy[4] intValue]) {
+                case 90:
+                    options = (0x00000400 | (kIOScaleRotate90)  << 16);
+                    break;
+                case 180:
+                    options = (0x00000400 | (kIOScaleRotate180)  << 16);
+                    break;
+                case 270:
+                    options = (0x00000400 | (kIOScaleRotate270)  << 16);
+                    break;
+                case 0:
+                default:
+                    options = (0x00000400 | (kIOScaleRotate0)  << 16);
+                    break;
+            }
+            IOServiceRequestProbe(service, options); //Set rotation to display
+        }
     }
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
     printf("Screen arrangement has been loaded\n");

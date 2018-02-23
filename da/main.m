@@ -125,9 +125,11 @@ void printInfo() {
         CGDirectDisplayID screenNumber = getDisplayID(screen);
         NSString* serial = getScreenSerial(screen);
         NSPoint position = getScreenPosition(screen);
+        NSSize size = [screen frame].size;
         printf("  Display %li\n", (long)screenNumber);
-        printf("    Serial:   %s\n", [serial UTF8String]);
-        printf("    Position: {%i, %i}\n", (int)position.x, (int)position.y);
+        printf("    Serial:    %s\n", [serial UTF8String]);
+        printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
+        printf("    Dimension: {%i, %i}\n", (int)size.width, (int)size.height);
     }
 }
 

@@ -185,8 +185,10 @@ void loadArrangement(NSString* savePath) {
 
         IOOptionBits options;
         // TODO: CGDisplayIOServicePort is deprecated ...
-        // alternative aproach basics: https://stackoverflow.com/questions/2079956/programatically-trigger-detect-displays
+        // alternative aproach basics: see function TriggerDetectDisplays() at the bottom...
         // Howto identify display from serviceIterator loop ... requires investigation.
+        // Bummer .... alternative solution is based on other deprecated functionality ...
+        // IOServiceMatching("IOFramebuffer")   << IOFramebuffer is deprecated ...
         io_service_t service = CGDisplayIOServicePort(displayID);
         if (service) {
             switch ([(NSNumber*)xy[4] intValue]) {
@@ -255,5 +257,23 @@ NSPoint getScreenPosition(NSScreen* screen) {
     point.x = frame.origin.x;
     point.y = frame.origin.y;
     return point;
+}
+
+void triggerDetectDisplays()
+{
+    // loop over all IOFramebuffer services
+    CFMutableDictionaryRef matchingDict = IOServiceMatching("IOFramebuffer");
+    
+    mach_port_t masterPort;
+    IOMasterPort(MACH_PORT_NULL, &masterPort);
+    io_iterator_t serviceIterator;
+    IOServiceGetMatchingServices(masterPort, matchingDict, &serviceIterator);
+    
+    io_service_t obj = IOIteratorNext(serviceIterator);
+    while (obj)
+    {
+        kern_return_t kr = IOServiceRequestProbe(obj, 0);
+        obj = IOIteratorNext(serviceIterator);
+    }
 }
 

@@ -33,7 +33,7 @@ void loadArrangement(NSString* savePath);
 bool checkDisplayAvailability(NSArray* displaySerials);
 bool checkMode(CGDisplayModeRef,long,long);
 CGDirectDisplayID getDisplayID(NSScreen* screen);
-NSString* getScreenSerial(NSScreen* screen);
+NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID);
 NSPoint getScreenPosition(NSScreen* screen);
 
 int main(int argc, const char * argv[])
@@ -123,12 +123,12 @@ void printInfo() {
     NSArray* screens = [NSScreen screens];
     printf("Total: %lu\n", (unsigned long)[screens count]);
     for (NSScreen* screen in screens) {
-        CGDirectDisplayID screenNumber = getDisplayID(screen);
-        NSString* serial = getScreenSerial(screen);
+        CGDirectDisplayID displayID = getDisplayID(screen);
+        NSString* serial = getScreenSerial(screen, displayID);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
-        NSInteger rotation = CGDisplayRotation(screenNumber);
-        printf("  Display %li\n", (long)screenNumber);
+        NSInteger rotation = CGDisplayRotation(displayID);
+        printf("  Display %li\n", (long)displayID);
         printf("    Serial:    %s\n", [serial UTF8String]);
         printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
         printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
@@ -140,10 +140,11 @@ void saveArrangement(NSString* savePath) {
     NSArray* screens = [NSScreen screens];
     [dict setObject:@"ScreenArrangement" forKey:@"About"];
     for (NSScreen* screen in screens) {
-        NSString* serial = getScreenSerial(screen);
+        CGDirectDisplayID displayID=getDisplayID(screen);
+        NSString* serial = getScreenSerial(screen,displayID);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
-        NSInteger rotation = CGDisplayRotation(getDisplayID(screen));
+        NSInteger rotation = CGDisplayRotation(displayID);
         NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], rotation, nil];
         [dict setObject:a forKey:serial];
     }
@@ -170,34 +171,38 @@ void loadArrangement(NSString* savePath) {
     
     CGDisplayConfigRef config;
     CGBeginDisplayConfiguration(&config);
-    NSMutableArray* xy ;
+    NSMutableArray* paramStore ;
     for (NSScreen* screen in [NSScreen screens]) {
-        CGDisplayModeRef mode;
-        CFIndex index;
-        NSString* serial = getScreenSerial(screen);
         CGDirectDisplayID displayID = getDisplayID(screen);
+        NSString* serial = getScreenSerial(screen,displayID);
         CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
         CFIndex count=CFArrayGetCount(modeList);
         
-        xy = [dict objectForKey:serial];
-        if (xy == nil) {
-            // Use displayID in case display has no EDID information.
-            xy = [dict objectForKey:[NSString stringWithFormat:@"%u",displayID]];
-        }
-        int32_t x = [(NSNumber*)xy[0] intValue];
-        int32_t y = [(NSNumber*)xy[1] intValue];
-        // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
-        CGConfigureDisplayOrigin(config, displayID, x, -1*y);
+        /*
+         1st: Find values in object store
+         */
+        paramStore = [dict objectForKey:serial];
         
-        // To restore screen size we have to find one mode that matches
-        for (index = 0; index < count; index++) {
-            mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
-            if (checkMode (mode,[(NSNumber*)xy[2] longValue],[(NSNumber*)xy[3] longValue])) {
+        /*
+         2nd: Set correct display mode to match desired resolution.
+         */
+        for (CFIndex index = 0; index < count; index++) {
+            // To restore screen size we have to find one mode that matches
+            // Changes nothing if we can't find a matching mode.
+            CGDisplayModeRef mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
+            if (checkMode (mode,[(NSNumber*)paramStore[2] longValue],[(NSNumber*)paramStore[3] longValue])) {
                 // found
                 CGConfigureDisplayWithDisplayMode(config, displayID, mode, NULL);
                 break;
             }
         }
+
+        /*
+         3rd: Set display origin.
+         */
+        // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
+        CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
+        
     }
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
     printf("Screen arrangement has been loaded\n");
@@ -208,12 +213,9 @@ void loadArrangement(NSString* savePath) {
 bool checkDisplayAvailability(NSArray* displaySerials) {
     NSArray* screens = [NSScreen screens];
     for (NSScreen* screen in screens) {
-        NSString* serial = getScreenSerial(screen);
+        NSString* serial = getScreenSerial(screen,0);
         if (![displaySerials containsObject:serial]) {
-            CGDirectDisplayID displayID = getDisplayID(screen);
-            if (![displaySerials containsObject:[NSString stringWithFormat:@"%u",displayID]]) {
-                return false;
-            }
+            return false;
         }
     }
     return true;
@@ -238,13 +240,15 @@ CGDirectDisplayID getDisplayID(NSScreen* screen) {
     return [[screenDescription objectForKey:@"NSScreenNumber"] unsignedIntValue];
 }
 
-NSString* getScreenSerial(NSScreen* screen) {
+NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     // In fact, the function returns vendor id concateneted with serial number
-    CGDirectDisplayID displayID = getDisplayID(screen);
     NSString* name;
     NSDictionary *deviceInfo = (__bridge_transfer NSDictionary*) IODisplayCreateInfoDictionary(CGDisplayIOServicePort(displayID), kIODisplayOnlyPreferredName);
     NSData* edid = [deviceInfo objectForKey:@"IODisplayEDID"];
     if (edid == nil ) {
+        if (displayID == 0) {
+            displayID = getDisplayID(screen);
+        }
         // Use displayID in case display has no EDID information.
         name = [NSString stringWithFormat:@"%u",displayID];
     } else {

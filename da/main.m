@@ -172,8 +172,13 @@ void loadArrangement(NSString* savePath) {
     CGBeginDisplayConfiguration(&config);
     NSMutableArray* xy ;
     for (NSScreen* screen in [NSScreen screens]) {
+        CGDisplayModeRef mode;
+        CFIndex index;
         NSString* serial = getScreenSerial(screen);
         CGDirectDisplayID displayID = getDisplayID(screen);
+        CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
+        CFIndex count=CFArrayGetCount(modeList);
+        
         xy = [dict objectForKey:serial];
         if (xy == nil) {
             // Use displayID in case display has no EDID information.
@@ -182,30 +187,16 @@ void loadArrangement(NSString* savePath) {
         int32_t x = [(NSNumber*)xy[0] intValue];
         int32_t y = [(NSNumber*)xy[1] intValue];
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
-        CGConfigureDisplayOrigin(config, displayID, x, -1*y); 
-
-        IOOptionBits options;
-        // TODO: CGDisplayIOServicePort is deprecated ...
-        // alternative aproach basics: https://stackoverflow.com/questions/2079956/programatically-trigger-detect-displays
-        // Howto identify display from serviceIterator loop ... requires investigation.
-        io_service_t service = CGDisplayIOServicePort(displayID);
-        if (service) {
-            switch ([(NSNumber*)xy[4] intValue]) {
-                case 90:
-                    options = (0x00000400 | (kIOScaleRotate90)  << 16);
-                    break;
-                case 180:
-                    options = (0x00000400 | (kIOScaleRotate180)  << 16);
-                    break;
-                case 270:
-                    options = (0x00000400 | (kIOScaleRotate270)  << 16);
-                    break;
-                case 0:
-                default:
-                    options = (0x00000400 | (kIOScaleRotate0)  << 16);
-                    break;
+        CGConfigureDisplayOrigin(config, displayID, x, -1*y);
+        
+        // To restore screen size we have to find one mode that matches
+        for (index = 0; index < count; index++) {
+            mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
+            if (checkMode (mode,[(NSNumber*)xy[2] longValue],[(NSNumber*)xy[3] longValue])) {
+                // found
+                CGDisplaySetDisplayMode(displayID, mode, NULL);
+                break;
             }
-            IOServiceRequestProbe(service, options); //Set rotation to display
         }
     }
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);

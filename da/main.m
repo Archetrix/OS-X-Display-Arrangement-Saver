@@ -31,6 +31,7 @@ void saveArrangement(NSString* savePath);
 void loadArrangement(NSString* savePath);
 
 bool checkDisplayAvailability(NSArray* displaySerials);
+bool checkMode(CGDisplayModeRef,long,long);
 CGDirectDisplayID getDisplayID(NSScreen* screen);
 NSString* getScreenSerial(NSScreen* screen);
 NSPoint getScreenPosition(NSScreen* screen);
@@ -225,6 +226,20 @@ bool checkDisplayAvailability(NSArray* displaySerials) {
         }
     }
     return true;
+}
+
+bool checkMode (CGDisplayModeRef mode, long checkw, long checkh) {
+    long height = CGDisplayModeGetHeight(mode);
+    long width = CGDisplayModeGetWidth(mode);
+    CFStringRef encoding = CGDisplayModeCopyPixelEncoding(mode);
+    
+    if (height == checkh && width == checkw && CFStringCompare(encoding, CFSTR(IO32BitDirectPixels),0)==kCFCompareEqualTo) {
+        CFRelease(encoding);
+        return true;
+    } else {
+        CFRelease(encoding);
+        return false;
+    }
 }
 
 CGDirectDisplayID getDisplayID(NSScreen* screen) {

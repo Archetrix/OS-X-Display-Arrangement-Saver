@@ -194,7 +194,7 @@ void loadArrangement(NSString* savePath) {
             mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
             if (checkMode (mode,[(NSNumber*)xy[2] longValue],[(NSNumber*)xy[3] longValue])) {
                 // found
-                CGDisplaySetDisplayMode(displayID, mode, NULL);
+                CGConfigureDisplayWithDisplayMode(config, displayID, mode, NULL);
                 break;
             }
         }

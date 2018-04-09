@@ -245,16 +245,21 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     NSString* name;
     NSDictionary *deviceInfo = (__bridge_transfer NSDictionary*) IODisplayCreateInfoDictionary(CGDisplayIOServicePort(displayID), kIODisplayOnlyPreferredName);
     NSData* edid = [deviceInfo objectForKey:@"IODisplayEDID"];
+    if (edid != nil) {
+        // The function tries to return vendor id concateneted with serial number
+        // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
+        name = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+        // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
+        if ([[name substringFromIndex: [name length] -8] isEqualToString:@"00000000"]) {
+            edid = nil;
+        }
+    }
     if (edid == nil ) {
         if (displayID == 0) {
             displayID = getDisplayID(screen);
         }
         // Use displayID in case display has no EDID information.
         name = [NSString stringWithFormat:@"%u",displayID];
-    } else {
-        // The function tries to return vendor id concateneted with serial number
-        // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
-        name = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
     }
     return name;
 }

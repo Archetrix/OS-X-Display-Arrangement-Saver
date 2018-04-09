@@ -152,6 +152,9 @@ void saveArrangement(NSString* savePath) {
         }
         [dict setObject:a forKey:serial];
     }
+    if ([dict count] != [screens count]) {
+        printf("Something odd is happening. Possibly duplicate identifiers. Have %i screens but %i settings to store",(int)[screens count],(int)[dict count]);
+    }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {
         printf("Configuration file has been saved.\n");
     } else {

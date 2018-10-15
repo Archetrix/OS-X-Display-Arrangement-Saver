@@ -250,26 +250,38 @@ CGDirectDisplayID getDisplayID(NSScreen* screen) {
 
 NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     // In fact, the function returns vendor id concateneted with serial number
-    NSString* name;
+    NSString* name_edid = @"";
     NSDictionary *deviceInfo = (__bridge_transfer NSDictionary*) IODisplayCreateInfoDictionary(CGDisplayIOServicePort(displayID), kIODisplayOnlyPreferredName);
     NSData* edid = [deviceInfo objectForKey:@"IODisplayEDID"];
     if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
-        name = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+        name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
         // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
-        if ([[name substringFromIndex: [name length] -8] isEqualToString:@"00000000"]) {
-            edid = nil;
+        if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
+            name_edid = @"";
+        }
+        // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
+        // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
+        // Some have at least an ASCII Serial Number in the descriptor extensions.
+        for (int i=1;i<4;i++) {
+            NSString* fnktemp = getEDIDDescriptor(edid, i, true);
+            if ([fnktemp length] != 0) {
+                name_edid = [NSString stringWithFormat:@"%@:%@", name_edid, fnktemp];
+            }
+        }
+        for (int i=1;i<4;i++) {
+            NSString* fnktemp = getEDIDDescriptor(edid, i, false);
+            if ([fnktemp length] != 0) {
+                name_edid = [NSString stringWithFormat:@"%@:%@", name_edid, fnktemp];
+            }
         }
     }
-    if (edid == nil ) {
         if (displayID == 0) {
             displayID = getDisplayID(screen);
         }
         // Use displayID in case display has no EDID information.
-        name = [NSString stringWithFormat:@"%u",displayID];
-    }
-    return name;
+    return [NSString stringWithFormat:@"%u-%@", displayID, name_edid];
 }
 
 NSPoint getScreenPosition(NSScreen* screen) {

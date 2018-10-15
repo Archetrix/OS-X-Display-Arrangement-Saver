@@ -35,6 +35,7 @@ bool checkMode(CGDisplayModeRef,long,long);
 CGDirectDisplayID getDisplayID(NSScreen* screen);
 NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID);
 NSPoint getScreenPosition(NSScreen* screen);
+NSString* getEDIDDescriptor(NSData* edid, int descriptor, bool displayname);
 
 int main(int argc, const char * argv[])
 {
@@ -279,3 +280,34 @@ NSPoint getScreenPosition(NSScreen* screen) {
     return point;
 }
 
+NSString* getEDIDDescriptor(NSData* edid, int descriptor, bool displayname) {
+    NSMutableString *_string = [NSMutableString stringWithString:@""];
+    NSString* type=@"000000FF";
+    if (displayname) {
+        type=@"000000FC";
+    }
+    int offset=54;
+    if (descriptor >= 4) {
+        offset=108;
+    } else if (descriptor == 3) {
+        offset=90;
+    } else if (descriptor == 2) {
+        offset=72;
+    }
+    
+    if ([[[edid subdataWithRange:NSMakeRange(offset, 4)] hexString] isEqualToString:type]) {
+        // Section is a display Name (ASCII Text)
+        NSData *_data = [edid subdataWithRange:NSMakeRange((offset+5), 13)];
+        for (int i = 0; i < _data.length; i++) {
+            unsigned char _byte;
+            [_data getBytes:&_byte range:NSMakeRange(i, 1)];
+            if (_byte >= 32 && _byte < 127) {
+                [_string appendFormat:@"%c", _byte];
+            //} else {
+            //    [_string appendFormat:@"[%d]", _byte];
+            }
+        }
+    }
+    return [NSString stringWithFormat:@"%@", [_string stringByTrimmingCharactersInSet:
+                                              [NSCharacterSet whitespaceAndNewlineCharacterSet]]];
+}

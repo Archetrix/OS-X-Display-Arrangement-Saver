@@ -148,12 +148,12 @@ void saveArrangement(NSString* savePath) {
         NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], rotation, nil];
         if (dict[serial]) {
             // Generate a warning, when the serial is already in our dictionary.
-            printf("Warning duplicate screen identifier %s detected. Check if two or more serials are identical. Stored alignments will be incomplete.",[serial UTF8String]);
+            printf("Warning duplicate screen identifier %s detected. Check if two or more serials are identical. Stored alignments will be incomplete.\n",[serial UTF8String]);
         }
         [dict setObject:a forKey:serial];
     }
-    if ([dict count] != [screens count]) {
-        printf("Something odd is happening. Possibly duplicate identifiers. Have %i screens but %i settings to store",(int)[screens count],(int)[dict count]);
+    if ([dict count] != [screens count]+1) {
+        printf("Something odd is happening. Possibly duplicate identifiers. Have %i screens but %i settings to store.\n",(int)[screens count],(int)[dict count]);
     }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {
         printf("Configuration file has been saved.\n");

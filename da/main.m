@@ -345,11 +345,15 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
             }
         }
     }
+    // Use displayID in case display has no EDID information.
+    if ([name_edid isEqualToString:@""]) {
         if (displayID == 0) {
             displayID = getDisplayID(screen);
         }
-        // Use displayID in case display has no EDID information.
-    return [NSString stringWithFormat:@"%u-%@", displayID, name_edid];
+        return [NSString stringWithFormat:@"%u", displayID];
+    } else {
+        return [NSString stringWithFormat:@"%@", name_edid];
+    }
 }
 
 NSPoint getScreenPosition(NSScreen* screen) {

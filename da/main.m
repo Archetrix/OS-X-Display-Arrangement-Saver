@@ -24,6 +24,8 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #import <IOKit/graphics/IOGraphicsLib.h>
+#define MAX_DISPLAYS 10
+#define SECONDARY_DISPLAY_COUNT 9
 
 void printHelp(void);
 void printInfo(void);
@@ -36,6 +38,12 @@ CGDirectDisplayID getDisplayID(NSScreen* screen);
 NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID);
 NSPoint getScreenPosition(NSScreen* screen);
 NSString* getEDIDDescriptor(NSData* edid, int descriptor, bool displayname);
+
+static CGDisplayCount numberOfTotalDspys = MAX_DISPLAYS;
+
+static CGDirectDisplayID activeDspys[MAX_DISPLAYS];
+static CGDirectDisplayID onlineDspys[MAX_DISPLAYS];
+static CGDirectDisplayID secondaryDspys[SECONDARY_DISPLAY_COUNT];
 
 int main(int argc, const char * argv[])
 {
@@ -95,6 +103,45 @@ int main(int argc, const char * argv[])
 }
 @end
 
+void multiConfigureDisplays(CGDisplayConfigRef configRef, CGDirectDisplayID *secondaryDspys, int count, CGDirectDisplayID master) {
+    for (int i = 0; i<count; i++) {
+        CGConfigureDisplayMirrorOfDisplay(configRef, secondaryDspys[i], master);
+    }
+}
+bool getMirrorMode() {
+    return CGDisplayIsInMirrorSet(CGMainDisplayID());
+}
+void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
+    CGDisplayCount numberOfActiveDspys;
+    CGDisplayCount numberOfOnlineDspys;
+    CGDisplayErr activeError = CGGetActiveDisplayList (numberOfTotalDspys,activeDspys,&numberOfActiveDspys);
+    
+    if (activeError!=0) NSLog(@"Error in obtaining active diplay list: %d\n",activeError);
+    
+    CGDisplayErr onlineError = CGGetOnlineDisplayList (numberOfTotalDspys,onlineDspys,&numberOfOnlineDspys);
+    
+    if (onlineError!=0) NSLog(@"Error in obtaining online diplay list: %d\n",onlineError);
+    
+    if (numberOfOnlineDspys<2) {
+        printf("No secondary display detected.\n");
+        return;
+    }
+    
+    int secondaryDisplayIndex = 0;
+    for (int displayIndex = 0; displayIndex<numberOfOnlineDspys; displayIndex++) {
+        if (onlineDspys[displayIndex] != CGMainDisplayID()) {
+            secondaryDspys[secondaryDisplayIndex] = onlineDspys[displayIndex];
+            secondaryDisplayIndex++;
+        }
+    }
+    
+    if ([paramStore isEqualToString:@"on"] && !getMirrorMode()) {
+        multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, CGMainDisplayID());
+    } else {
+        multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, kCGNullDirectDisplay);
+    }
+}
+
 
 // COMMAND LINE
 
@@ -134,6 +181,11 @@ void printInfo() {
         printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
         printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
     }
+    if(getMirrorMode()) {
+        printf("Mirror Mode: ON\n");
+    } else {
+        printf("Mirror Mode: OFF\n");
+    }
 }
 
 void saveArrangement(NSString* savePath) {
@@ -155,6 +207,11 @@ void saveArrangement(NSString* savePath) {
     }
     if ([dict count] != [screens count]+1) {
         printf("Something odd is happening. Possibly duplicate identifiers. Have %i screens but %i settings to store.\n",(int)[screens count],(int)[dict count]);
+    }
+    if(getMirrorMode()) {
+        [dict setObject:@"on" forKey:@"Mirror"];
+    } else {
+        [dict setObject:@"off" forKey:@"Mirror"];
     }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {
         printf("Configuration file has been saved.\n");
@@ -179,6 +236,13 @@ void loadArrangement(NSString* savePath) {
     
     CGDisplayConfigRef config;
     CGBeginDisplayConfiguration(&config);
+    NSString* mirrorsetting = [dict objectForKey:@"Mirror"];
+    if (mirrorsetting != nil) {
+        /*
+         Intro: Set mirror mode.
+         */
+        setMirrorMode(config,mirrorsetting);
+    }
     NSMutableArray* paramStore ;
     for (NSScreen* screen in [NSScreen screens]) {
         CGDirectDisplayID displayID = getDisplayID(screen);

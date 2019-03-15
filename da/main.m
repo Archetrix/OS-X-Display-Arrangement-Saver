@@ -1,6 +1,7 @@
 // OS X Display Arrangement Saver
 //
 // Copyright (c) 2014 Eugene Cherny
+// Copyright (c) 2019 Andreas Geesen (Videro AG)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -147,26 +148,75 @@ void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
 
 void printHelp() {
     NSString* helpText =
-        @"OS X Display Arrangement Saver 0.2\n"
-        @"A tool for saving and restoring display arrangement on OS X\n"
-        @"\n"
-        @"Usage:\n"
-        @"  da help - prints this text\n"
-        @"  da list - prints a list of all connected screens\n"
-        @"  da save <path_to_plist> - saves current display arrangement to file\n"
-        @"  da load <path_to_plist> - loads display arrangement from file\n"
-        @"     if <path_to_plist> is not specified - the default used: '~/Desktop/ScreenArrangement.plist'\n"
-        @"\n"
-        @"NOTES\n"
-        @"  This fixes Y-axis arrangement and includes some work to ensure non-edid displays work, too\n"
-        @"\n"
-        @"  Original authors GitHub repo:\n"
-        @"    https://github.com/ech2/OS-X-Display-Arrangement-Saver\n"
-        @"  Contributor GitHub repo:\n"
-        @"    https://github.com/archetrix/OS-X-Display-Arrangement-Saver\n";
+    @"OS X Display Arrangement Saver 0.2\n"
+    @"A tool for saving and restoring display arrangement on OS X\n"
+    @"\n"
+    @"Usage:\n"
+    @"  da help - prints this text\n"
+    @"  da list - prints a list of all connected screens\n"
+    @"  da save <path_to_plist> - saves current display arrangement to file\n"
+    @"  da load <path_to_plist> - loads display arrangement from file\n"
+    @"     if <path_to_plist> is not specified - the default used: '~/Desktop/ScreenArrangement.plist'\n"
+    @"\n"
+    @"NOTES\n"
+    @"  This fixes Y-axis arrangement and includes some work to ensure non-edid displays work, too\n"
+    @"\n"
+    @"  Original authors GitHub repo:\n"
+    @"    https://github.com/ech2/OS-X-Display-Arrangement-Saver\n"
+    @"  Contributor GitHub repo:\n"
+    @"    https://github.com/archetrix/OS-X-Display-Arrangement-Saver\n";
     printf("%s", [helpText UTF8String]);
 }
 
+CGDisplayErr setRotation(NSString* rotation, CGDirectDisplayID directDisplayID) {
+    //CGDirectDisplayID directDisplayID = (CGDirectDisplayID)display.intValue;
+    
+    //Set the rotation
+    NSString* desiredRotation;
+    if([rotation isEqualToString:@""])
+    {
+        desiredRotation=@"0";
+    }
+    else
+    {
+        desiredRotation = rotation;
+    }
+    
+    enum{
+        kIOFBSetTransform = 0x00000400,
+    };
+
+    static IOOptionBits anglebits[] = {
+        (0x00000400 | (kIOScaleRotate0)   << 16),
+        (0x00000400 | (kIOScaleRotate90)  << 16),
+        (0x00000400 | (kIOScaleRotate180) << 16),
+        (0x00000400 | (kIOScaleRotate270) << 16)
+    };
+    
+    int anglebitsNumber = 0;
+    switch ([desiredRotation intValue]) {
+        case 90:
+            anglebitsNumber = 1;
+            break;
+        case 180:
+            anglebitsNumber = 2;
+            break;
+        case 270:
+            anglebitsNumber = 3;
+            break;
+        default:
+            anglebitsNumber = 0;
+            break;
+    }
+    
+    io_service_t service = CGDisplayIOServicePort(directDisplayID);
+    CGDisplayErr displayError = IOServiceRequestProbe(service, anglebits[anglebitsNumber]);
+    if(displayError == kCGErrorSuccess) {
+        sleep(5);
+    }
+    
+    return displayError;
+}
 void printInfo() {
     NSArray* screens = [NSScreen screens];
     printf("Total: %lu\n", (unsigned long)[screens count]);
@@ -249,14 +299,24 @@ void loadArrangement(NSString* savePath) {
         NSString* serial = getScreenSerial(screen,displayID);
         CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
         CFIndex count=CFArrayGetCount(modeList);
-        
+        NSInteger rotation = CGDisplayRotation(displayID);
         /*
          1st: Find values in object store
          */
         paramStore = [dict objectForKey:serial];
-        
+
         /*
-         2nd: Set correct display mode to match desired resolution.
+         2nd: Check/set Display rotation
+         */
+        if (rotation != [(NSNumber*)paramStore[4] intValue]) {
+            CGDisplayErr rotation_err = setRotation(paramStore[4], displayID);
+            if (rotation_err != kCGErrorSuccess) {
+                printf("Failed to rotate screen %s",[serial UTF8String]);
+            }
+        }
+
+        /*
+         3rd: Set correct display mode to match desired resolution.
          */
         for (CFIndex index = 0; index < count; index++) {
             // To restore screen size we have to find one mode that matches
@@ -270,7 +330,7 @@ void loadArrangement(NSString* savePath) {
         }
 
         /*
-         3rd: Set display origin.
+         4th: Set display origin.
          */
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
         CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
@@ -321,13 +381,13 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
         if ([edid length] > 128) {
-        name_edid = [NSString stringWithFormat:@"%@%@", [[edid subdataWithRange:NSMakeRange(8, 10)] hexString],[[edid subdataWithRange:NSMakeRange(160,1)] hexString]];
+            name_edid = [NSString stringWithFormat:@"%@%@", [[edid subdataWithRange:NSMakeRange(8, 10)] hexString],[[edid subdataWithRange:NSMakeRange(160,1)] hexString]];
         } else {
-        name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
-        // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
-        if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
-            name_edid = @"";
-        }
+            name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+            // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
+            if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
+                name_edid = @"";
+            }
         }
         // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
         // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.

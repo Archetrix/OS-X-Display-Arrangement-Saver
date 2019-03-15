@@ -212,7 +212,7 @@ CGDisplayErr setRotation(NSString* rotation, CGDirectDisplayID directDisplayID) 
     io_service_t service = CGDisplayIOServicePort(directDisplayID);
     CGDisplayErr displayError = IOServiceRequestProbe(service, anglebits[anglebitsNumber]);
     if(displayError == kCGErrorSuccess) {
-        sleep(5);
+        sleep(1);
     }
     
     return displayError;

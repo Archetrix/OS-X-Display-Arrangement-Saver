@@ -304,6 +304,8 @@ void loadArrangement(NSString* savePath) {
          1st: Find values in object store
          */
         paramStore = [dict objectForKey:serial];
+        //printf("  Display %li\n", (long)displayID);
+        //printf("    Serial:    %s\n", [serial UTF8String]);
 
         /*
          2nd: Check/set Display rotation
@@ -313,6 +315,7 @@ void loadArrangement(NSString* savePath) {
             if (rotation_err != kCGErrorSuccess) {
                 printf("Failed to rotate screen %s",[serial UTF8String]);
             }
+            //printf("    Rotation: %i\n", [(NSNumber*)paramStore[4] intValue]);
         }
 
         /*
@@ -325,6 +328,7 @@ void loadArrangement(NSString* savePath) {
             if (checkMode (mode,[(NSNumber*)paramStore[2] longValue],[(NSNumber*)paramStore[3] longValue])) {
                 // found
                 CGConfigureDisplayWithDisplayMode(config, displayID, mode, NULL);
+                //printf("    Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
                 break;
             }
         }
@@ -333,6 +337,7 @@ void loadArrangement(NSString* savePath) {
          4th: Set display origin.
          */
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
+        //printf("    Position:  {%i, %i}\n", [(NSNumber*)paramStore[0] intValue], [(NSNumber*)paramStore[1] intValue]);
         CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
         
     }

@@ -24,6 +24,8 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #import <IOKit/graphics/IOGraphicsLib.h>
+#define MAX_DISPLAYS 10
+#define SECONDARY_DISPLAY_COUNT 9
 
 void printHelp(void);
 void printInfo(void);
@@ -31,9 +33,17 @@ void saveArrangement(NSString* savePath);
 void loadArrangement(NSString* savePath);
 
 bool checkDisplayAvailability(NSArray* displaySerials);
+bool checkMode(CGDisplayModeRef,long,long);
 CGDirectDisplayID getDisplayID(NSScreen* screen);
-NSString* getScreenSerial(NSScreen* screen);
+NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID);
 NSPoint getScreenPosition(NSScreen* screen);
+NSString* getEDIDDescriptor(NSData* edid, int descriptor, bool displayname);
+
+static CGDisplayCount numberOfTotalDspys = MAX_DISPLAYS;
+
+static CGDirectDisplayID activeDspys[MAX_DISPLAYS];
+static CGDirectDisplayID onlineDspys[MAX_DISPLAYS];
+static CGDirectDisplayID secondaryDspys[SECONDARY_DISPLAY_COUNT];
 
 int main(int argc, const char * argv[])
 {
@@ -93,28 +103,67 @@ int main(int argc, const char * argv[])
 }
 @end
 
+void multiConfigureDisplays(CGDisplayConfigRef configRef, CGDirectDisplayID *secondaryDspys, int count, CGDirectDisplayID master) {
+    for (int i = 0; i<count; i++) {
+        CGConfigureDisplayMirrorOfDisplay(configRef, secondaryDspys[i], master);
+    }
+}
+bool getMirrorMode() {
+    return CGDisplayIsInMirrorSet(CGMainDisplayID());
+}
+void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
+    CGDisplayCount numberOfActiveDspys;
+    CGDisplayCount numberOfOnlineDspys;
+    CGDisplayErr activeError = CGGetActiveDisplayList (numberOfTotalDspys,activeDspys,&numberOfActiveDspys);
+    
+    if (activeError!=0) NSLog(@"Error in obtaining active diplay list: %d\n",activeError);
+    
+    CGDisplayErr onlineError = CGGetOnlineDisplayList (numberOfTotalDspys,onlineDspys,&numberOfOnlineDspys);
+    
+    if (onlineError!=0) NSLog(@"Error in obtaining online diplay list: %d\n",onlineError);
+    
+    if (numberOfOnlineDspys<2) {
+        printf("No secondary display detected.\n");
+        return;
+    }
+    
+    int secondaryDisplayIndex = 0;
+    for (int displayIndex = 0; displayIndex<numberOfOnlineDspys; displayIndex++) {
+        if (onlineDspys[displayIndex] != CGMainDisplayID()) {
+            secondaryDspys[secondaryDisplayIndex] = onlineDspys[displayIndex];
+            secondaryDisplayIndex++;
+        }
+    }
+    
+    if ([paramStore isEqualToString:@"on"] && !getMirrorMode()) {
+        multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, CGMainDisplayID());
+    } else {
+        multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, kCGNullDirectDisplay);
+    }
+}
+
 
 // COMMAND LINE
 
 void printHelp() {
     NSString* helpText =
-        @"OS X Display Arrangement Saver 0.2\n"
-        @"A tool for saving and restoring display arrangement on OS X\n"
-        @"\n"
-        @"Usage:\n"
-        @"  da help - prints this text\n"
-        @"  da list - prints a list of all connected screens\n"
-        @"  da save <path_to_plist> - saves current display arrangement to file\n"
-        @"  da load <path_to_plist> - loads display arrangement from file\n"
-        @"     if <path_to_plist> is not specified - the default used: '~/Desktop/ScreenArrangement.plist'\n"
-        @"\n"
-        @"NOTES\n"
-        @"  This fixes Y-axis arrangement and includes some work to ensure non-edid displays work, too\n"
-        @"\n"
-        @"  Original authors GitHub repo:\n"
-        @"    https://github.com/ech2/OS-X-Display-Arrangement-Saver\n"
-        @"  Contributor GitHub repo:\n"
-        @"    https://github.com/archetrix/OS-X-Display-Arrangement-Saver\n";
+    @"OS X Display Arrangement Saver 0.2\n"
+    @"A tool for saving and restoring display arrangement on OS X\n"
+    @"\n"
+    @"Usage:\n"
+    @"  da help - prints this text\n"
+    @"  da list - prints a list of all connected screens\n"
+    @"  da save <path_to_plist> - saves current display arrangement to file\n"
+    @"  da load <path_to_plist> - loads display arrangement from file\n"
+    @"     if <path_to_plist> is not specified - the default used: '~/Desktop/ScreenArrangement.plist'\n"
+    @"\n"
+    @"NOTES\n"
+    @"  This fixes Y-axis arrangement and includes some work to ensure non-edid displays work, too\n"
+    @"\n"
+    @"  Original authors GitHub repo:\n"
+    @"    https://github.com/ech2/OS-X-Display-Arrangement-Saver\n"
+    @"  Contributor GitHub repo:\n"
+    @"    https://github.com/archetrix/OS-X-Display-Arrangement-Saver\n";
     printf("%s", [helpText UTF8String]);
 }
 
@@ -122,15 +171,20 @@ void printInfo() {
     NSArray* screens = [NSScreen screens];
     printf("Total: %lu\n", (unsigned long)[screens count]);
     for (NSScreen* screen in screens) {
-        CGDirectDisplayID screenNumber = getDisplayID(screen);
-        NSString* serial = getScreenSerial(screen);
+        CGDirectDisplayID displayID = getDisplayID(screen);
+        NSString* serial = getScreenSerial(screen, displayID);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
-        NSInteger rotation = CGDisplayRotation(screenNumber);
-        printf("  Display %li\n", (long)screenNumber);
+        NSInteger rotation = CGDisplayRotation(displayID);
+        printf("  Display %li\n", (long)displayID);
         printf("    Serial:    %s\n", [serial UTF8String]);
         printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
         printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
+    }
+    if(getMirrorMode()) {
+        printf("Mirror Mode: ON\n");
+    } else {
+        printf("Mirror Mode: OFF\n");
     }
 }
 
@@ -139,12 +193,25 @@ void saveArrangement(NSString* savePath) {
     NSArray* screens = [NSScreen screens];
     [dict setObject:@"ScreenArrangement" forKey:@"About"];
     for (NSScreen* screen in screens) {
-        NSString* serial = getScreenSerial(screen);
+        CGDirectDisplayID displayID=getDisplayID(screen);
+        NSString* serial = getScreenSerial(screen,displayID);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
-        NSInteger rotation = CGDisplayRotation(getDisplayID(screen));
+        NSInteger rotation = CGDisplayRotation(displayID);
         NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], rotation, nil];
+        if (dict[serial]) {
+            // Generate a warning, when the serial is already in our dictionary.
+            printf("Warning duplicate screen identifier %s detected. Check if two or more serials are identical. Stored alignments will be incomplete.\n",[serial UTF8String]);
+        }
         [dict setObject:a forKey:serial];
+    }
+    if ([dict count] != [screens count]+1) {
+        printf("Something odd is happening. Possibly duplicate identifiers. Have %i screens but %i settings to store.\n",(int)[screens count],(int)[dict count]);
+    }
+    if(getMirrorMode()) {
+        [dict setObject:@"on" forKey:@"Mirror"];
+    } else {
+        [dict setObject:@"off" forKey:@"Mirror"];
     }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {
         printf("Configuration file has been saved.\n");
@@ -169,45 +236,45 @@ void loadArrangement(NSString* savePath) {
     
     CGDisplayConfigRef config;
     CGBeginDisplayConfiguration(&config);
-    NSMutableArray* xy ;
+    NSString* mirrorsetting = [dict objectForKey:@"Mirror"];
+    if (mirrorsetting != nil) {
+        /*
+         Intro: Set mirror mode.
+         */
+        setMirrorMode(config,mirrorsetting);
+    }
+    NSMutableArray* paramStore ;
     for (NSScreen* screen in [NSScreen screens]) {
-        NSString* serial = getScreenSerial(screen);
         CGDirectDisplayID displayID = getDisplayID(screen);
-        xy = [dict objectForKey:serial];
-        if (xy == nil) {
-            // Use displayID in case display has no EDID information.
-            xy = [dict objectForKey:[NSString stringWithFormat:@"%u",displayID]];
-        }
-        int32_t x = [(NSNumber*)xy[0] intValue];
-        int32_t y = [(NSNumber*)xy[1] intValue];
-        // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
-        CGConfigureDisplayOrigin(config, displayID, x, -1*y); 
-
-        IOOptionBits options;
-        // TODO: CGDisplayIOServicePort is deprecated ...
-        // alternative aproach basics: see function TriggerDetectDisplays() at the bottom...
-        // Howto identify display from serviceIterator loop ... requires investigation.
-        // Bummer .... alternative solution is based on other deprecated functionality ...
-        // IOServiceMatching("IOFramebuffer")   << IOFramebuffer is deprecated ...
-        io_service_t service = CGDisplayIOServicePort(displayID);
-        if (service) {
-            switch ([(NSNumber*)xy[4] intValue]) {
-                case 90:
-                    options = (0x00000400 | (kIOScaleRotate90)  << 16);
-                    break;
-                case 180:
-                    options = (0x00000400 | (kIOScaleRotate180)  << 16);
-                    break;
-                case 270:
-                    options = (0x00000400 | (kIOScaleRotate270)  << 16);
-                    break;
-                case 0:
-                default:
-                    options = (0x00000400 | (kIOScaleRotate0)  << 16);
-                    break;
+        NSString* serial = getScreenSerial(screen,displayID);
+        CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
+        CFIndex count=CFArrayGetCount(modeList);
+        
+        /*
+         1st: Find values in object store
+         */
+        paramStore = [dict objectForKey:serial];
+        
+        /*
+         2nd: Set correct display mode to match desired resolution.
+         */
+        for (CFIndex index = 0; index < count; index++) {
+            // To restore screen size we have to find one mode that matches
+            // Changes nothing if we can't find a matching mode.
+            CGDisplayModeRef mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
+            if (checkMode (mode,[(NSNumber*)paramStore[2] longValue],[(NSNumber*)paramStore[3] longValue])) {
+                // found
+                CGConfigureDisplayWithDisplayMode(config, displayID, mode, NULL);
+                break;
             }
-            IOServiceRequestProbe(service, options); //Set rotation to display
         }
+        
+        /*
+         3rd: Set display origin.
+         */
+        // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
+        CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
+        
     }
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
     printf("Screen arrangement has been loaded\n");
@@ -218,15 +285,26 @@ void loadArrangement(NSString* savePath) {
 bool checkDisplayAvailability(NSArray* displaySerials) {
     NSArray* screens = [NSScreen screens];
     for (NSScreen* screen in screens) {
-        NSString* serial = getScreenSerial(screen);
+        NSString* serial = getScreenSerial(screen,0);
         if (![displaySerials containsObject:serial]) {
-            CGDirectDisplayID displayID = getDisplayID(screen);
-            if (![displaySerials containsObject:[NSString stringWithFormat:@"%u",displayID]]) {
-                return false;
-            }
+            return false;
         }
     }
     return true;
+}
+
+bool checkMode (CGDisplayModeRef mode, long checkw, long checkh) {
+    long height = CGDisplayModeGetHeight(mode);
+    long width = CGDisplayModeGetWidth(mode);
+    CFStringRef encoding = CGDisplayModeCopyPixelEncoding(mode);
+    
+    if (height == checkh && width == checkw && CFStringCompare(encoding, CFSTR(IO32BitDirectPixels),0)==kCFCompareEqualTo) {
+        CFRelease(encoding);
+        return true;
+    } else {
+        CFRelease(encoding);
+        return false;
+    }
 }
 
 CGDirectDisplayID getDisplayID(NSScreen* screen) {
@@ -234,21 +312,48 @@ CGDirectDisplayID getDisplayID(NSScreen* screen) {
     return [[screenDescription objectForKey:@"NSScreenNumber"] unsignedIntValue];
 }
 
-NSString* getScreenSerial(NSScreen* screen) {
+NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     // In fact, the function returns vendor id concateneted with serial number
-    CGDirectDisplayID displayID = getDisplayID(screen);
-    NSString* name;
+    NSString* name_edid = @"";
     NSDictionary *deviceInfo = (__bridge_transfer NSDictionary*) IODisplayCreateInfoDictionary(CGDisplayIOServicePort(displayID), kIODisplayOnlyPreferredName);
     NSData* edid = [deviceInfo objectForKey:@"IODisplayEDID"];
-    if (edid == nil ) {
-        // Use displayID in case display has no EDID information.
-        name = [NSString stringWithFormat:@"%u",displayID];
-    } else {
+    if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
-        name = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+        if ([edid length] > 128) {
+            name_edid = [NSString stringWithFormat:@"%@%@", [[edid subdataWithRange:NSMakeRange(8, 10)] hexString],[[edid subdataWithRange:NSMakeRange(160,1)] hexString]];
+        } else {
+            name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+            // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
+            if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
+                name_edid = @"";
+            }
+        }
+        // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
+        // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
+        // Some have at least an ASCII Serial Number in the descriptor extensions.
+        for (int i=1;i<4;i++) {
+            NSString* fnktemp = getEDIDDescriptor(edid, i, true);
+            if ([fnktemp length] != 0) {
+                name_edid = [NSString stringWithFormat:@"%@:%@", name_edid, fnktemp];
+            }
+        }
+        for (int i=1;i<4;i++) {
+            NSString* fnktemp = getEDIDDescriptor(edid, i, false);
+            if ([fnktemp length] != 0) {
+                name_edid = [NSString stringWithFormat:@"%@:%@", name_edid, fnktemp];
+            }
+        }
     }
-    return name;
+    // Use displayID in case display has no EDID information.
+    if ([name_edid isEqualToString:@""]) {
+        if (displayID == 0) {
+            displayID = getDisplayID(screen);
+        }
+        return [NSString stringWithFormat:@"%u", displayID];
+    } else {
+        return [NSString stringWithFormat:@"%@", name_edid];
+    }
 }
 
 NSPoint getScreenPosition(NSScreen* screen) {
@@ -259,21 +364,34 @@ NSPoint getScreenPosition(NSScreen* screen) {
     return point;
 }
 
-void triggerDetectDisplays()
-{
-    // loop over all IOFramebuffer services
-    CFMutableDictionaryRef matchingDict = IOServiceMatching("IOFramebuffer");
-    
-    mach_port_t masterPort;
-    IOMasterPort(MACH_PORT_NULL, &masterPort);
-    io_iterator_t serviceIterator;
-    IOServiceGetMatchingServices(masterPort, matchingDict, &serviceIterator);
-    
-    io_service_t obj = IOIteratorNext(serviceIterator);
-    while (obj)
-    {
-        kern_return_t kr = IOServiceRequestProbe(obj, 0);
-        obj = IOIteratorNext(serviceIterator);
+NSString* getEDIDDescriptor(NSData* edid, int descriptor, bool displayname) {
+    NSMutableString *_string = [NSMutableString stringWithString:@""];
+    NSString* type=@"000000FF";
+    if (displayname) {
+        type=@"000000FC";
     }
+    int offset=54;
+    if (descriptor >= 4) {
+        offset=108;
+    } else if (descriptor == 3) {
+        offset=90;
+    } else if (descriptor == 2) {
+        offset=72;
+    }
+    
+    if ([[[edid subdataWithRange:NSMakeRange(offset, 4)] hexString] isEqualToString:type]) {
+        // Section is a display Name (ASCII Text)
+        NSData *_data = [edid subdataWithRange:NSMakeRange((offset+5), 13)];
+        for (int i = 0; i < _data.length; i++) {
+            unsigned char _byte;
+            [_data getBytes:&_byte range:NSMakeRange(i, 1)];
+            if (_byte >= 32 && _byte < 127) {
+                [_string appendFormat:@"%c", _byte];
+                //} else {
+                //    [_string appendFormat:@"[%d]", _byte];
+            }
+        }
+    }
+    return [NSString stringWithFormat:@"%@", [_string stringByTrimmingCharactersInSet:
+                                              [NSCharacterSet whitespaceAndNewlineCharacterSet]]];
 }
-

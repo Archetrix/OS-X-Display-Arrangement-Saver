@@ -167,8 +167,8 @@ void printHelp() {
     printf("%s", [helpText UTF8String]);
 }
 
-CGDisplayErr setRotation(NSString* rotation, NSString* display) {
-    CGDirectDisplayID directDisplayID = (CGDirectDisplayID)display.intValue;
+CGDisplayErr setRotation(NSString* rotation, CGDirectDisplayID directDisplayID) {
+    //CGDirectDisplayID directDisplayID = (CGDirectDisplayID)display.intValue;
     
     //Set the rotation
     NSString* desiredRotation;
@@ -298,14 +298,24 @@ void loadArrangement(NSString* savePath) {
         NSString* serial = getScreenSerial(screen,displayID);
         CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
         CFIndex count=CFArrayGetCount(modeList);
-        
+        NSInteger rotation = CGDisplayRotation(displayID);
         /*
          1st: Find values in object store
          */
         paramStore = [dict objectForKey:serial];
-        
+
         /*
-         2nd: Set correct display mode to match desired resolution.
+         2nd: Check/set Display rotation
+         */
+        if (rotation != [(NSNumber*)paramStore[4] intValue]) {
+            CGDisplayErr rotation_err = setRotation(paramStore[4], displayID);
+            if (rotation_err != kCGErrorSuccess) {
+                printf("Failed to rotate screen %s",[serial UTF8String]);
+            }
+        }
+
+        /*
+         3rd: Set correct display mode to match desired resolution.
          */
         for (CFIndex index = 0; index < count; index++) {
             // To restore screen size we have to find one mode that matches
@@ -319,7 +329,7 @@ void loadArrangement(NSString* savePath) {
         }
         
         /*
-         3rd: Set display origin.
+         4th: Set display origin.
          */
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
         CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);

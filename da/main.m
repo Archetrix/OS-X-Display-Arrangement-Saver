@@ -310,8 +310,8 @@ void loadArrangement(NSString* savePath) {
         /*
          2nd: Check/set Display rotation
          */
-        if (rotation != [(NSNumber*)paramStore[4] intValue]) {
-            CGDisplayErr rotation_err = setRotation(paramStore[4], displayID);
+        if (rotation != [(NSNumber*)paramStore[4] longValue]) {
+            CGDisplayErr rotation_err = setRotation([NSString stringWithFormat:@"%i" ,[(NSNumber*)paramStore[4] intValue]], displayID);
             if (rotation_err != kCGErrorSuccess) {
                 printf("Failed to rotate screen %s",[serial UTF8String]);
             }

@@ -167,6 +167,55 @@ void printHelp() {
     printf("%s", [helpText UTF8String]);
 }
 
+CGDisplayErr setRotation(NSString* rotation, NSString* display) {
+    CGDirectDisplayID directDisplayID = (CGDirectDisplayID)display.intValue;
+    
+    //Set the rotation
+    NSString* desiredRotation;
+    if([rotation isEqualToString:@""])
+    {
+        desiredRotation=@"0";
+    }
+    else
+    {
+        desiredRotation = rotation;
+    }
+    
+    enum{
+        kIOFBSetTransform = 0x00000400,
+    };
+
+    static IOOptionBits anglebits[] = {
+        (0x00000400 | (kIOScaleRotate0)   << 16),
+        (0x00000400 | (kIOScaleRotate90)  << 16),
+        (0x00000400 | (kIOScaleRotate180) << 16),
+        (0x00000400 | (kIOScaleRotate270) << 16)
+    };
+    
+    int anglebitsNumber = 0;
+    switch ([desiredRotation intValue]) {
+        case 90:
+            anglebitsNumber = 1;
+            break;
+        case 180:
+            anglebitsNumber = 2;
+            break;
+        case 270:
+            anglebitsNumber = 3;
+            break;
+        default:
+            anglebitsNumber = 0;
+            break;
+    }
+    
+    io_service_t service = CGDisplayIOServicePort(directDisplayID);
+    CGDisplayErr displayError = IOServiceRequestProbe(service, anglebits[anglebitsNumber]);
+    if(displayError == kCGErrorSuccess) {
+        sleep(5);
+    }
+    
+    return displayError;
+}
 void printInfo() {
     NSArray* screens = [NSScreen screens];
     printf("Total: %lu\n", (unsigned long)[screens count]);

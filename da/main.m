@@ -248,8 +248,8 @@ void saveArrangement(NSString* savePath) {
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
         NSInteger rotation = CGDisplayRotation(displayID);
-        NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], rotation, nil];
-        if (dict[serial]) {
+        NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], [NSNumber numberWithLong: rotation], nil];
+        if ([dict objectForKey:serial]) {
             // Generate a warning, when the serial is already in our dictionary.
             printf("Warning duplicate screen identifier %s detected. Check if two or more serials are identical. Stored alignments will be incomplete.\n",[serial UTF8String]);
         }

@@ -297,8 +297,6 @@ void loadArrangement(NSString* savePath) {
     for (NSScreen* screen in [NSScreen screens]) {
         CGDirectDisplayID displayID = getDisplayID(screen);
         NSString* serial = getScreenSerial(screen,displayID);
-        CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
-        CFIndex count=CFArrayGetCount(modeList);
         NSInteger rotation = CGDisplayRotation(displayID);
         /*
          1st: Find values in object store
@@ -321,6 +319,8 @@ void loadArrangement(NSString* savePath) {
         /*
          3rd: Set correct display mode to match desired resolution.
          */
+        CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
+        CFIndex count=CFArrayGetCount(modeList);
         for (CFIndex index = 0; index < count; index++) {
             // To restore screen size we have to find one mode that matches
             // Changes nothing if we can't find a matching mode.

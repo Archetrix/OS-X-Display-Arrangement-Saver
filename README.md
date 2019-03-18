@@ -7,7 +7,7 @@ For doing it, the tool uses serial numbers for the displays and not the IDs that
 
 [Download tool](https://github.com/archetrix/OS-X-Display-Arrangement-Saver/releases)
 
-#### Usage 
+#### Usage
 
 `da help` - prints help text <br />
 `da list` - prints a list of all connected screens <br />
@@ -25,7 +25,7 @@ I've experienced lately that display manufacturers leave the serial number secti
 data untouched (e.g zero) and thus if you happen to have two identical displays you end up
 not being able to determine which one goes where.
 Adding to that is the fact, that Apple macOS separates the display info from the port it
-plugged into. I know why they do it but it sucks in this case.
+is plugged into. I know why they do it but it sucks in this case.
 ** If anyone has an idea on how to tie display and port to a unique identifier ping me **
 
 I have found out for some displays you can identify different audio latency values

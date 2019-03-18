@@ -332,7 +332,7 @@ void loadArrangement(NSString* savePath) {
                 break;
             }
         }
-
+        CFRelease(modeList);
         /*
          4th: Set display origin.
          */

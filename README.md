@@ -5,7 +5,7 @@ Simple console tool for saving and restoring display arrangement on OS X.
 
 For doing it, the tool uses serial numbers for the displays and not the IDs that OS X assigns to them.
 
-[Download tool](https://github.com/archetrix/OS-X-Display-Arrangement-Saver/releases)
+[Download tool](https://github.com/Archetrix/OS-X-Display-Arrangement-Saver/releases)
 
 #### Usage
 

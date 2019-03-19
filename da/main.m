@@ -404,6 +404,7 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
+        /*
         if ([edid length] > 128) {
             name_edid = [NSString stringWithFormat:@"%@%@", [[edid subdataWithRange:NSMakeRange(8, 10)] hexString],[[edid subdataWithRange:NSMakeRange(160,1)] hexString]];
         } else {
@@ -413,6 +414,13 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
                 name_edid = @"";
             }
         }
+         */
+        name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+        // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
+        if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
+            name_edid = @"";
+        }
+
         // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
         // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
         // Some have at least an ASCII Serial Number in the descriptor extensions.

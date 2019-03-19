@@ -405,7 +405,7 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
         /*
-        if ([edid length] > 128) {
+         if ([edid length] > 128) {
             name_edid = [NSString stringWithFormat:@"%@%@", [[edid subdataWithRange:NSMakeRange(8, 10)] hexString],[[edid subdataWithRange:NSMakeRange(160,1)] hexString]];
         } else {
             name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
@@ -427,13 +427,13 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
         for (int i=1;i<4;i++) {
             NSString* fnktemp = getEDIDDescriptor(edid, i, true);
             if ([fnktemp length] != 0) {
-                name_edid = [NSString stringWithFormat:@"%@:%@", name_edid, fnktemp];
+                name_edid = [NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey,fnktemp];
             }
         }
         for (int i=1;i<4;i++) {
             NSString* fnktemp = getEDIDDescriptor(edid, i, false);
             if ([fnktemp length] != 0) {
-                name_edid = [NSString stringWithFormat:@"%@:%@", name_edid, fnktemp];
+                name_edid = [NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey,fnktemp];
             }
         }
     }

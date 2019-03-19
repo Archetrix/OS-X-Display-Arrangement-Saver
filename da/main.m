@@ -388,7 +388,7 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     // "IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/IGPU@2/AppleIntelFramebuffer@2/display0/AppleDisplay-4c2d-373"
     NSString *pattern = @"([0-9]?@[0-9]{1,2})";
     NSError *error = nil;
-    NSMutableString* hwkey=[[NSMutableString alloc]init];;
+    NSMutableString* hwkey=[[NSMutableString alloc]init];
     
     NSRegularExpression* regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:&error];
     NSArray *matches = [regex matchesInString:prefskey options:0 range:searchRange];
@@ -404,48 +404,27 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
-        /*
-         if ([edid length] > 128) {
-            name_edid = [NSString stringWithFormat:@"%@%@", [[edid subdataWithRange:NSMakeRange(8, 10)] hexString],[[edid subdataWithRange:NSMakeRange(160,1)] hexString]];
-        } else {
-            name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
-            // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
-            if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
-                name_edid = @"";
-            }
-        }
-         */
         name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
-        // If name contains an empty serial nuber (i've seen this happen just now) use DisplayID as fallback
-        if ([[name_edid substringFromIndex: [name_edid length] -8] isEqualToString:@"00000000"]) {
-            name_edid = @"";
-        }
 
-        // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
-        // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
-        // Some have at least an ASCII Serial Number in the descriptor extensions.
-        for (int i=1;i<4;i++) {
-            NSString* fnktemp = getEDIDDescriptor(edid, i, true);
-            if ([fnktemp length] != 0) {
-                name_edid = [NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey,fnktemp];
-            }
-        }
-        for (int i=1;i<4;i++) {
-            NSString* fnktemp = getEDIDDescriptor(edid, i, false);
-            if ([fnktemp length] != 0) {
-                name_edid = [NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey,fnktemp];
-            }
+    }
+    // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
+    // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
+    // Some have at least an ASCII Serial Number in the descriptor extensions.
+    NSMutableString* descriptor=[[NSMutableString alloc]init];
+    for (int i=1;i<4;i++) {
+        NSString* fnktemp = getEDIDDescriptor(edid, i, true);
+        if ([fnktemp length] != 0) {
+            [descriptor appendString:fnktemp];
         }
     }
-    // Use displayID in case display has no EDID information.
-    if ([name_edid isEqualToString:@""]) {
-        if (displayID == 0) {
-            displayID = getDisplayID(screen);
+    for (int i=1;i<4;i++) {
+        NSString* fnktemp = getEDIDDescriptor(edid, i, false);
+        if ([fnktemp length] != 0) {
+            [descriptor appendString:fnktemp];
         }
-        return [NSString stringWithFormat:@"%u", displayID];
-    } else {
-        return [NSString stringWithFormat:@"%@", name_edid];
     }
+
+    return [NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey,descriptor];
 }
 
 NSPoint getScreenPosition(NSScreen* screen) {

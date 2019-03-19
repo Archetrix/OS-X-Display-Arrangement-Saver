@@ -382,6 +382,25 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     NSString* name_edid = @"";
     NSDictionary *deviceInfo = (__bridge_transfer NSDictionary*) IODisplayCreateInfoDictionary(CGDisplayIOServicePort(displayID), kIODisplayOnlyPreferredName);
     NSData* edid = [deviceInfo objectForKey:@"IODisplayEDID"];
+    
+    NSString* prefskey = [deviceInfo objectForKey:@"IODisplayPrefsKey"];
+    NSRange searchRange = NSMakeRange(0,[prefskey length]);
+    // "IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/IGPU@2/AppleIntelFramebuffer@2/display0/AppleDisplay-4c2d-373"
+    NSString *pattern = @"([0-9]?@[0-9]{1,2})";
+    NSError *error = nil;
+    NSMutableString* hwkey=[[NSMutableString alloc]init];;
+    
+    NSRegularExpression* regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:&error];
+    NSArray *matches = [regex matchesInString:prefskey options:0 range:searchRange];
+    NSUInteger matchCount = [matches count];
+    if (matchCount) {
+        for (NSUInteger matchIdx = 0; matchIdx<matchCount;matchIdx++) {
+            NSTextCheckingResult *match = [matches objectAtIndex:matchIdx];
+            NSRange matchRange = [match range];
+            [hwkey appendString:[prefskey substringWithRange:matchRange]];
+        }
+    }
+    
     if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format

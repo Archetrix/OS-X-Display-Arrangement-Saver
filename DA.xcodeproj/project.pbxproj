@@ -247,7 +247,7 @@
 		C0B13F0F1A2F48B6007E06CE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 1.1;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "da/da-Prefix.pch";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -259,7 +259,7 @@
 		C0B13F101A2F48B6007E06CE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 1.1;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "da/da-Prefix.pch";
 				PRODUCT_NAME = "$(TARGET_NAME)";

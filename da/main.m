@@ -148,18 +148,20 @@ void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
 
 void printHelp() {
     NSString* helpText =
-    @"OS X Display Arrangement Saver 0.2\n"
+    @"OS X Display Arrangement Saver 1.1\n"
     @"A tool for saving and restoring display arrangement on OS X\n"
     @"\n"
     @"Usage:\n"
     @"  da help - prints this text\n"
-    @"  da list - prints a list of all connected screens\n"
+    @"  da list - prints a list of all connected screens and their current setup\n"
     @"  da save <path_to_plist> - saves current display arrangement to file\n"
     @"  da load <path_to_plist> - loads display arrangement from file\n"
     @"     if <path_to_plist> is not specified - the default used: '~/Desktop/ScreenArrangement.plist'\n"
     @"\n"
     @"NOTES\n"
-    @"  This fixes Y-axis arrangement and includes some work to ensure non-edid displays work, too\n"
+    @"  This ties displays to the port they're plugged in to.\n"
+    @"  Be aware of that, because if plugged in to another port\n"
+    @"  your screen will not be identified anymore.\n"
     @"\n"
     @"  Original authors GitHub repo:\n"
     @"    https://github.com/ech2/OS-X-Display-Arrangement-Saver\n"

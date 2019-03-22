@@ -382,51 +382,58 @@ CGDirectDisplayID getDisplayID(NSScreen* screen) {
 NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
     // In fact, the function returns vendor id concateneted with serial number
     NSString* name_edid = @"";
+    NSMutableString* hwkey=[[NSMutableString alloc]init];
+    NSMutableString* descriptor=[[NSMutableString alloc]init];
+
     NSDictionary *deviceInfo = (__bridge_transfer NSDictionary*) IODisplayCreateInfoDictionary(CGDisplayIOServicePort(displayID), kIODisplayOnlyPreferredName);
     NSData* edid = [deviceInfo objectForKey:@"IODisplayEDID"];
-    
     NSString* prefskey = [deviceInfo objectForKey:@"IODisplayPrefsKey"];
-    NSRange searchRange = NSMakeRange(0,[prefskey length]);
-    // "IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/IGPU@2/AppleIntelFramebuffer@2/display0/AppleDisplay-4c2d-373"
-    NSString *pattern = @"([0-9]?@[0-9]{1,2})";
-    NSError *error = nil;
-    NSMutableString* hwkey=[[NSMutableString alloc]init];
     
-    NSRegularExpression* regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:&error];
-    NSArray *matches = [regex matchesInString:prefskey options:0 range:searchRange];
-    NSUInteger matchCount = [matches count];
-    if (matchCount) {
-        for (NSUInteger matchIdx = 0; matchIdx<matchCount;matchIdx++) {
-            NSTextCheckingResult *match = [matches objectAtIndex:matchIdx];
-            NSRange matchRange = [match range];
-            [hwkey appendString:[prefskey substringWithRange:matchRange]];
+    if (prefskey != nil) {
+        NSRange searchRange = NSMakeRange(0,[prefskey length]);
+        // "IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/IGPU@2/AppleIntelFramebuffer@2/display0/AppleDisplay-4c2d-373"
+        NSString *pattern = @"([0-9]?@[0-9]{1,2})";
+        NSError *error = nil;
+        
+        NSRegularExpression* regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:&error];
+        NSArray *matches = [regex matchesInString:prefskey options:0 range:searchRange];
+        NSUInteger matchCount = [matches count];
+        if (matchCount) {
+            for (NSUInteger matchIdx = 0; matchIdx<matchCount;matchIdx++) {
+                NSTextCheckingResult *match = [matches objectAtIndex:matchIdx];
+                NSRange matchRange = [match range];
+                [hwkey appendString:[prefskey substringWithRange:matchRange]];
+            }
         }
     }
-    
+
     if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
         name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
 
-    }
-    // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
-    // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
-    // Some have at least an ASCII Serial Number in the descriptor extensions.
-    NSMutableString* descriptor=[[NSMutableString alloc]init];
-    for (int i=1;i<4;i++) {
-        NSString* fnktemp = getEDIDDescriptor(edid, i, true);
-        if ([fnktemp length] != 0) {
-            [descriptor appendString:fnktemp];
+        // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
+        // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
+        // Some have at least an ASCII Serial Number in the descriptor extensions.
+        for (int i=1;i<4;i++) {
+            NSString* fnktemp = getEDIDDescriptor(edid, i, true);
+            if ([fnktemp length] != 0) {
+                [descriptor appendString:fnktemp];
+            }
+        }
+        for (int i=1;i<4;i++) {
+            NSString* fnktemp = getEDIDDescriptor(edid, i, false);
+            if ([fnktemp length] != 0) {
+                [descriptor appendString:fnktemp];
+            }
         }
     }
-    for (int i=1;i<4;i++) {
-        NSString* fnktemp = getEDIDDescriptor(edid, i, false);
-        if ([fnktemp length] != 0) {
-            [descriptor appendString:fnktemp];
-        }
+    NSString *result=[NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey, descriptor];
+    if (![result  isEqual: @"#:"]) {
+        return [NSString stringWithFormat:@"%li", (long)displayID];
+    } else {
+        return result;
     }
-
-    return [NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey,descriptor];
 }
 
 NSPoint getScreenPosition(NSScreen* screen) {

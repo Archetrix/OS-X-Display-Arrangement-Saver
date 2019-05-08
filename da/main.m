@@ -389,10 +389,12 @@ int loadArrangement(NSString* savePath) {
          */
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
         NSPoint position = getScreenPosition(screen);
-        if ([NSNumber numberWithInt: position.x] != paramStore[0] || [NSNumber numberWithInt: position.y] != paramStore[1]) {
-            needToChange++;
-            //printf("    Position:  {%i, %i}\n", [(NSNumber*)paramStore[0] intValue], [(NSNumber*)paramStore[1] intValue]);
+        if ((int) position.x != [(NSNumber*)paramStore[0] intValue] || (int) position.y != [(NSNumber*)paramStore[1] intValue]) {
+            //printf("  Now  Position:  {%i, %i}\n",  (int) position.x, (int) position.y);
+            //printf("  New  Position:  {%i, %i}\n", [(NSNumber*)paramStore[0] intValue], [(NSNumber*)paramStore[1] intValue]);
             CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
+            printf("changing screen origin; ");
+            needToChange++;
         }
         
     }

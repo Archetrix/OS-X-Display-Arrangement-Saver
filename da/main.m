@@ -331,19 +331,33 @@ int loadArrangement(NSString* savePath) {
          */
         CFArrayRef modeList=CGDisplayCopyAllDisplayModes(displayID, NULL);
         CFIndex count=CFArrayGetCount(modeList);
+        bool foundNow=false,foundNew=false;
+        CGDisplayModeRef modeNow=NULL,modeNew=NULL;
+        NSSize size = [screen frame].size;
         for (CFIndex index = 0; index < count; index++) {
             // To restore screen size we have to find one mode that matches
             // Changes nothing if we can't find a matching mode.
             // TODO: Examine if that is changing anything (for return code).
             CGDisplayModeRef mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
-            if (checkMode (mode,[(NSNumber*)paramStore[2] longValue],[(NSNumber*)paramStore[3] longValue])) {
+            if (!foundNew && checkMode (mode,[(NSNumber*)paramStore[2] longValue],[(NSNumber*)paramStore[3] longValue])) {
                 // found
-                CGConfigureDisplayWithDisplayMode(config, displayID, mode, NULL);
+                modeNew=mode;
+                foundNew=true;
                 //printf("    Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
-                break;
             }
+            if (!foundNow && checkMode (mode,size.width,size.height)) {
+                // found
+                modeNow=mode;
+                foundNow=true;
+                //printf("    Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
+            }
+            if (foundNow && foundNew) break;
         }
         CFRelease(modeList);
+        if (foundNow && foundNew && modeNow != modeNew) {
+            CGConfigureDisplayWithDisplayMode(config, displayID, modeNew, NULL);
+            needToChange++;
+        }
         /*
          4th: Set display origin.
          */

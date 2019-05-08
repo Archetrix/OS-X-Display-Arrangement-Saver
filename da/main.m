@@ -144,11 +144,15 @@ int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
     
     if ([paramStore isEqualToString:@"on"] && !getMirrorMode()) {
         multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, CGMainDisplayID());
+        printf("Enabling mirror");
         return 1;
-    } else {
-        multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, kCGNullDirectDisplay);
-        return 0;
     }
+    if ([paramStore isEqualToString:@"off"] && getMirrorMode()) {
+        multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, kCGNullDirectDisplay);
+        printf("Disabling mirror");
+        return 1;
+    }
+    return 0;
 }
 
 

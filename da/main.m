@@ -29,9 +29,12 @@
 #define SECONDARY_DISPLAY_COUNT 9
 
 void printHelp(void);
+void printErco(void);
+void printVersion(void);
 void printInfo(void);
 int saveArrangement(NSString* savePath);
 int loadArrangement(NSString* savePath);
+const NSString* Version=@"1.2";
 
 bool checkDisplayAvailability(NSArray* displaySerials);
 bool checkMode(CGDisplayModeRef,long,long);
@@ -50,12 +53,15 @@ int main(int argc, const char * argv[])
 {
     @autoreleasepool {
         NSArray* args = [[NSProcessInfo processInfo] arguments];
+        printVersion();
         if ([args count] == 1 || [args count] > 3) {
             printHelp();
             return 1;
         }
         if ([args[1] isEqualToString:@"help"]) {
             printHelp();
+        } else if ([args[1] isEqualToString:@"erco"]) {
+            printErco();
         } else if ([args[1] isEqualToString:@"list"]) {
             printInfo();
         } else if ([args[1] isEqualToString:@"save"]) {
@@ -150,11 +156,9 @@ int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
 
 void printHelp() {
     NSString* helpText =
-    @"OS X Display Arrangement Saver 1.1\n"
-    @"A tool for saving and restoring display arrangement on OS X\n"
-    @"\n"
     @"Usage:\n"
     @"  da help - prints this text\n"
+    @"  da erco - prints a list of error codes returned with explanations\n"
     @"  da list - prints a list of all connected screens and their current setup\n"
     @"  da save <path_to_plist> - saves current display arrangement to file\n"
     @"  da load <path_to_plist> - loads display arrangement from file\n"
@@ -171,7 +175,25 @@ void printHelp() {
     @"    https://github.com/archetrix/OS-X-Display-Arrangement-Saver\n";
     printf("%s", [helpText UTF8String]);
 }
-
+void printErco() {
+    NSString* ercoText =
+    @"List of error codes:\n"
+    @"    0 : No errors, all good.\n"
+    @"  100 : Could not save arrangement into configuration file.\n"
+    @"  101 : Could not load configuration file.\n"
+    @"  102 : Configuration file is not a saved arrangement.\n"
+    @"  103 : Configuration file does not match current setup.\n"
+    @"  2xx : Error code minus 200 indicates how many changes had to be made to the current setup while loading a configuration.\n"
+    @"        This can help if something else has to be triggered only if screen setup has been changed.\n"
+    @"        e.g. restarting a program that would not detect that change on its own.\n"
+    @"\n"
+    @"Checking return code >200 find soft errors indicating a change in display arangement.\n"
+    @"By checking return code >0 and <200 you find real hard errors.\n";
+    printf("%s", [ercoText UTF8String]);
+}
+void printVersion() {
+    printf("OS X Display Arrangement Saver %s\nA tool for saving and restoring display arrangement on OS X\n\n", [Version UTF8String]);
+}
 CGDisplayErr setRotation(NSString* rotation, CGDirectDisplayID directDisplayID) {
     //CGDirectDisplayID directDisplayID = (CGDirectDisplayID)display.intValue;
     
@@ -272,7 +294,7 @@ int saveArrangement(NSString* savePath) {
         return 0;
     } else {
         printf("Error: Error saving configuration file.\n");
-        return 1;
+        return 100;
     }
 }
 

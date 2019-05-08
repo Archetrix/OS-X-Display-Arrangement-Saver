@@ -404,7 +404,8 @@ int loadArrangement(NSString* savePath) {
 bool checkDisplayAvailability(NSArray* displaySerials) {
     NSArray* screens = [NSScreen screens];
     for (NSScreen* screen in screens) {
-        NSString* serial = getScreenSerial(screen,0);
+        CGDirectDisplayID displayID=getDisplayID(screen);
+        NSString* serial = getScreenSerial(screen,displayID);
         if (![displaySerials containsObject:serial]) {
             return false;
         }

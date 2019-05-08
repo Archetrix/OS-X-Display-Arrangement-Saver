@@ -336,8 +336,8 @@ int loadArrangement(NSString* savePath) {
          1st: Find values in object store
          */
         paramStore = [dict objectForKey:serial];
-        //printf("  Display %li\n", (long)displayID);
-        //printf("    Serial:    %s\n", [serial UTF8String]);
+        printf("\n  Display %li\n", (long)displayID);
+        printf("    Serial:    %s\n", [serial UTF8String]);
 
         /*
          2nd: Check/set Display rotation
@@ -347,6 +347,7 @@ int loadArrangement(NSString* savePath) {
             if (rotation_err != kCGErrorSuccess) {
                 printf("Failed to rotate screen %s",[serial UTF8String]);
             } else {
+                printf("rotating screen; ");
                 needToChange++;
             }
             //printf("    Rotation: %i\n", [(NSNumber*)paramStore[4] intValue]);
@@ -382,6 +383,7 @@ int loadArrangement(NSString* savePath) {
         CFRelease(modeList);
         if (foundNow && foundNew && modeNow != modeNew) {
             CGConfigureDisplayWithDisplayMode(config, displayID, modeNew, NULL);
+            printf("changing screen resolution; ");
             needToChange++;
         }
         /*
@@ -399,7 +401,7 @@ int loadArrangement(NSString* savePath) {
         
     }
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
-    printf("Screen arrangement has been loaded\n");
+    printf("\nScreen arrangement has been loaded\n");
     // Shift error code to above 200 ...
     if (needToChange>0) needToChange+=200;
     return needToChange;

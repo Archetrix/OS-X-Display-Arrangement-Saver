@@ -30,8 +30,8 @@
 
 void printHelp(void);
 void printInfo(void);
-void saveArrangement(NSString* savePath);
-void loadArrangement(NSString* savePath);
+int saveArrangement(NSString* savePath);
+int loadArrangement(NSString* savePath);
 
 bool checkDisplayAvailability(NSArray* displaySerials);
 bool checkMode(CGDisplayModeRef,long,long);
@@ -66,7 +66,7 @@ int main(int argc, const char * argv[])
                 filename = @"~/Desktop/ScreenArrangement.plist";
             }
             printf("Saving to file: '%s'\n", [filename UTF8String]);
-            saveArrangement(filename);
+            return saveArrangement(filename);
         } else if ([args[1] isEqualToString:@"load"]) {
             NSString* filename;
             if ([args count] == 3) {
@@ -75,7 +75,7 @@ int main(int argc, const char * argv[])
                 filename = @"~/Desktop/ScreenArrangement.plist";
             }
             printf("Loading arrangement from file: '%s'\n", [filename UTF8String]);
-            loadArrangement(filename);
+            return loadArrangement(filename);
         }
     }
     return 0;
@@ -112,7 +112,7 @@ void multiConfigureDisplays(CGDisplayConfigRef configRef, CGDirectDisplayID *sec
 bool getMirrorMode() {
     return CGDisplayIsInMirrorSet(CGMainDisplayID());
 }
-void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
+int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
     CGDisplayCount numberOfActiveDspys;
     CGDisplayCount numberOfOnlineDspys;
     CGDisplayErr activeError = CGGetActiveDisplayList (numberOfTotalDspys,activeDspys,&numberOfActiveDspys);
@@ -125,7 +125,7 @@ void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
     
     if (numberOfOnlineDspys<2) {
         printf("No secondary display detected.\n");
-        return;
+        return 0;
     }
     
     int secondaryDisplayIndex = 0;
@@ -138,8 +138,10 @@ void setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
     
     if ([paramStore isEqualToString:@"on"] && !getMirrorMode()) {
         multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, CGMainDisplayID());
+        return 1;
     } else {
         multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, kCGNullDirectDisplay);
+        return 0;
     }
 }
 
@@ -240,7 +242,7 @@ void printInfo() {
     }
 }
 
-void saveArrangement(NSString* savePath) {
+int saveArrangement(NSString* savePath) {
     NSMutableDictionary* dict = [[NSMutableDictionary alloc] init];
     NSArray* screens = [NSScreen screens];
     [dict setObject:@"ScreenArrangement" forKey:@"About"];
@@ -267,25 +269,29 @@ void saveArrangement(NSString* savePath) {
     }
     if ([dict writeToFile:[savePath stringByExpandingTildeInPath] atomically: YES]) {
         printf("Configuration file has been saved.\n");
+        return 0;
     } else {
         printf("Error: Error saving configuration file.\n");
+        return 1;
     }
 }
 
-void loadArrangement(NSString* savePath) {
+int loadArrangement(NSString* savePath) {
     NSDictionary* dict = [NSDictionary dictionaryWithContentsOfFile:[savePath stringByExpandingTildeInPath]];
     if (dict == nil) {
         printf("Error: Can't load file\n");
+        return 101;
     }
     if (![[dict objectForKey:@"About"] isEqualToString:@"ScreenArrangement"]) {
         printf("Error: Wrong .plist file.\n");
+        return 102;
     }
     //[dict removeObjectForKey:@"About"];
     if (!checkDisplayAvailability([dict allKeys])) {
         printf("Error: Probably, this configuration file has been made for different display set.\n");
-        return;
+        return 103;
     }
-    
+    int needToChange=0;
     CGDisplayConfigRef config;
     CGBeginDisplayConfiguration(&config);
     NSString* mirrorsetting = [dict objectForKey:@"Mirror"];
@@ -293,7 +299,7 @@ void loadArrangement(NSString* savePath) {
         /*
          Intro: Set mirror mode.
          */
-        setMirrorMode(config,mirrorsetting);
+        needToChange+=setMirrorMode(config,mirrorsetting);
     }
     NSMutableArray* paramStore ;
     for (NSScreen* screen in [NSScreen screens]) {
@@ -314,6 +320,8 @@ void loadArrangement(NSString* savePath) {
             CGDisplayErr rotation_err = setRotation([NSString stringWithFormat:@"%i" ,[(NSNumber*)paramStore[4] intValue]], displayID);
             if (rotation_err != kCGErrorSuccess) {
                 printf("Failed to rotate screen %s",[serial UTF8String]);
+            } else {
+                needToChange++;
             }
             //printf("    Rotation: %i\n", [(NSNumber*)paramStore[4] intValue]);
         }
@@ -326,6 +334,7 @@ void loadArrangement(NSString* savePath) {
         for (CFIndex index = 0; index < count; index++) {
             // To restore screen size we have to find one mode that matches
             // Changes nothing if we can't find a matching mode.
+            // TODO: Examine if that is changing anything (for return code).
             CGDisplayModeRef mode = (CGDisplayModeRef)CFArrayGetValueAtIndex (modeList, index);
             if (checkMode (mode,[(NSNumber*)paramStore[2] longValue],[(NSNumber*)paramStore[3] longValue])) {
                 // found
@@ -345,6 +354,9 @@ void loadArrangement(NSString* savePath) {
     }
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
     printf("Screen arrangement has been loaded\n");
+    // Shift error code to above 200 ...
+    if (needToChange>0) needToChange+=200;
+    return needToChange;
 }
 
 // UTILITY FUNCTIONS

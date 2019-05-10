@@ -152,6 +152,7 @@ int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
         printf("Disabling mirror");
         return 1;
     }
+    printf("Mirror unchanged");
     return 0;
 }
 
@@ -342,6 +343,7 @@ int loadArrangement(NSString* savePath) {
         /*
          2nd: Check/set Display rotation
          */
+        printf("    Rotation: Now %li vs. New %li\n",rotation, [(NSNumber*)paramStore[4] longValue]);
         if (rotation != [(NSNumber*)paramStore[4] longValue]) {
             CGDisplayErr rotation_err = setRotation([NSString stringWithFormat:@"%i" ,[(NSNumber*)paramStore[4] intValue]], displayID);
             if (rotation_err != kCGErrorSuccess) {
@@ -350,7 +352,6 @@ int loadArrangement(NSString* savePath) {
                 printf("rotating screen; ");
                 needToChange++;
             }
-            //printf("    Rotation: %i\n", [(NSNumber*)paramStore[4] intValue]);
         }
 
         /*
@@ -370,13 +371,13 @@ int loadArrangement(NSString* savePath) {
                 // found
                 modeNew=mode;
                 foundNew=true;
-                //printf("    Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
+                printf("    New Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
             }
             if (!foundNow && checkMode (mode,size.width,size.height)) {
                 // found
                 modeNow=mode;
                 foundNow=true;
-                //printf("    Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
+                printf("    Now Dimension: {%i, %i}\n", [(NSNumber*)paramStore[2] intValue],[(NSNumber*)paramStore[3] intValue]);
             }
             if (foundNow && foundNew) break;
         }
@@ -391,9 +392,9 @@ int loadArrangement(NSString* savePath) {
          */
         // NSScreen and CGDisplay use different Y axis ... so invert from one to another.
         NSPoint position = getScreenPosition(screen);
+        printf("    Now  Position:  {%i, %i}\n",  (int) position.x, (int) position.y);
+        printf("    New  Position:  {%i, %i}\n", [(NSNumber*)paramStore[0] intValue], [(NSNumber*)paramStore[1] intValue]);
         if ((int) position.x != [(NSNumber*)paramStore[0] intValue] || (int) position.y != [(NSNumber*)paramStore[1] intValue]) {
-            //printf("  Now  Position:  {%i, %i}\n",  (int) position.x, (int) position.y);
-            //printf("  New  Position:  {%i, %i}\n", [(NSNumber*)paramStore[0] intValue], [(NSNumber*)paramStore[1] intValue]);
             CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
             printf("changing screen origin; ");
             needToChange++;

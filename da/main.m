@@ -467,12 +467,14 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
                 [hwkey appendString:[prefskey substringWithRange:matchRange]];
             }
         }
+        //printf("hwkey %s\n",[hwkey UTF8String]);
     }
 
     if (edid != nil) {
         // The function tries to return vendor id concateneted with serial number
         // See https://en.wikipedia.org/wiki/Extended_Display_Identification_Data#EDID_1.4_data_format
         name_edid = [[edid subdataWithRange:NSMakeRange(10, 6)] hexString];
+        //printf("name_edid %s\n",[name_edid UTF8String]);
 
         // Use this additional edid descriptor data (if existent and not empty) to make identification stronger.
         // We have seen displays (mostly generic DVI to LED-Wall controllers) that send no serial number and not even a manufacturer or device identifier at all.
@@ -489,9 +491,11 @@ NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
                 [descriptor appendString:fnktemp];
             }
         }
+        //printf("descriptor %s\n",[descriptor UTF8String]);
     }
     NSString *result=[NSString stringWithFormat:@"%@#%@:%@", name_edid, hwkey, descriptor];
-    if (![result  isEqual: @"#:"]) {
+    //printf("result %s\n",[result UTF8String]);
+    if ([result  isEqual: @"#:"]) {
         return [NSString stringWithFormat:@"%li", (long)displayID];
     } else {
         return result;

@@ -187,7 +187,7 @@ void printErco() {
     @"  100 : Could not save arrangement into configuration file.\n"
     @"  101 : Could not load configuration file.\n"
     @"  102 : Configuration file is not a saved arrangement.\n"
-    @"  103 : Configuration file does not match current setup.\n"
+    //@"  103 : Configuration file does not match current setup.\n"
     @"  2xx : Error code minus 200 indicates how many changes had to be made to the current setup while loading a configuration.\n"
     @"        This can help if something else has to be triggered only if screen setup has been changed.\n"
     @"        e.g. restarting a program that would not detect that change on its own.\n"
@@ -315,8 +315,8 @@ int loadArrangement(NSString* savePath) {
     }
     //[dict removeObjectForKey:@"About"];
     if (!checkDisplayAvailability([dict allKeys])) {
-        printf("Error: Probably, this configuration file has been made for different display set.\n");
-        return 103;
+        printf("Warning: Probably, this configuration file has been made for different display set.\n");
+        //return 103;
     }
     int needToChange=0;
     CGDisplayConfigRef config;

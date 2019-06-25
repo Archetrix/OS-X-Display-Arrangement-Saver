@@ -118,7 +118,8 @@ void multiConfigureDisplays(CGDisplayConfigRef configRef, CGDirectDisplayID *sec
 bool getMirrorMode() {
     return CGDisplayIsInMirrorSet(CGMainDisplayID());
 }
-int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
+int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore, bool currentMirror) {
+    
     CGDisplayCount numberOfActiveDspys;
     CGDisplayCount numberOfOnlineDspys;
     CGDisplayErr activeError = CGGetActiveDisplayList (numberOfTotalDspys,activeDspys,&numberOfActiveDspys);
@@ -142,12 +143,12 @@ int setMirrorMode(CGDisplayConfigRef config,NSString* paramStore) {
         }
     }
     
-    if ([paramStore isEqualToString:@"on"] && !getMirrorMode()) {
+    if (!currentMirror && [paramStore isEqualToString:@"on"]) {
         multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, CGMainDisplayID());
         printf("Enabling mirror");
         return 1;
     }
-    if ([paramStore isEqualToString:@"off"] && getMirrorMode()) {
+    if (currentMirror && [paramStore isEqualToString:@"off"]) {
         multiConfigureDisplays(config, secondaryDspys, numberOfOnlineDspys - 1, kCGNullDirectDisplay);
         printf("Disabling mirror");
         return 1;
@@ -322,11 +323,15 @@ int loadArrangement(NSString* savePath) {
     CGDisplayConfigRef config;
     CGBeginDisplayConfiguration(&config);
     NSString* mirrorsetting = [dict objectForKey:@"Mirror"];
+    bool currentMirror = getMirrorMode();
     if (mirrorsetting != nil) {
         /*
-         Intro: Set mirror mode.
+         Intro: Set mirror mode, when off required
          */
-        needToChange+=setMirrorMode(config,mirrorsetting);
+        if (currentMirror && [mirrorsetting isEqualToString:@"off"]) {
+            needToChange+=setMirrorMode(config,mirrorsetting,currentMirror);
+        }
+
     }
     NSMutableArray* paramStore ;
     for (NSScreen* screen in [NSScreen screens]) {
@@ -401,6 +406,16 @@ int loadArrangement(NSString* savePath) {
         }
         
     }
+    if (mirrorsetting != nil) {
+        /*
+         Intro: Set mirror mode, when on required
+         */
+        if (!currentMirror && [mirrorsetting isEqualToString:@"on"]) {
+            needToChange+=setMirrorMode(config,mirrorsetting,currentMirror);
+        }
+        
+    }
+
     CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
     printf("\nScreen arrangement has been loaded\n");
     // Shift error code to above 200 ...

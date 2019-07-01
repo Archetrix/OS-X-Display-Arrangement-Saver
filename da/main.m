@@ -265,6 +265,25 @@ void printInfo() {
     }
     if(getMirrorMode()) {
         printf("Mirror Mode: ON\n");
+        CGDisplayCount numberOfOnlineDspys;
+        
+        CGDisplayErr onlineError = CGGetOnlineDisplayList (numberOfTotalDspys,onlineDspys,&numberOfOnlineDspys);
+        
+        if (onlineError!=0) NSLog(@"Error in obtaining online diplay list: %d\n",onlineError);
+        
+        for (int displayIndex = 0; displayIndex<numberOfOnlineDspys; displayIndex++) {
+            if (onlineDspys[displayIndex] != CGMainDisplayID()) {
+                NSString* serial = getScreenSerial(onlineDspys[displayIndex]);
+                //NSPoint position = getScreenPosition(screen);
+                //NSSize size = [screen frame].size;
+                NSInteger rotation = CGDisplayRotation(onlineDspys[displayIndex]);
+                printf("  Display %li\n", (long)onlineDspys[displayIndex]);
+                printf("    Serial:    %s\n", [serial UTF8String]);
+                //printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
+                //printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
+                printf("   Rotation:  %i\n", (int) rotation);
+            }
+        }
     } else {
         printf("Mirror Mode: OFF\n");
     }

@@ -344,6 +344,10 @@ int loadArrangement(NSString* savePath) {
         paramStore = [dict objectForKey:serial];
         printf("\n  Display %li\n", (long)displayID);
         printf("    Serial:    %s\n", [serial UTF8String]);
+        if (paramStore == nil) {
+            printf("\n  No parameters stored for this Display \n");
+            continue;
+        }
 
         /*
          2nd: Check/set Display rotation

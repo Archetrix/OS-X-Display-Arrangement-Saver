@@ -328,7 +328,7 @@ int loadArrangement(NSString* savePath) {
         /*
          Intro: Set mirror mode, when off required
          */
-        if (currentMirror && [mirrorsetting isEqualToString:@"off"]) {
+        if (currentMirror && [mirrorsetting caseInsensitiveCompare:@"off"] == NSOrderedSame ) {
             needToChange+=setMirrorMode(config,mirrorsetting,currentMirror);
         }
 
@@ -410,7 +410,7 @@ int loadArrangement(NSString* savePath) {
         /*
          Intro: Set mirror mode, when on required
          */
-        if (!currentMirror && [mirrorsetting isEqualToString:@"on"]) {
+        if (!currentMirror && [mirrorsetting caseInsensitiveCompare:@"on"] == NSOrderedSame ) {
             needToChange+=setMirrorMode(config,mirrorsetting,currentMirror);
         }
         

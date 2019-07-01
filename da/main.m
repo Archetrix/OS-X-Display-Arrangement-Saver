@@ -39,7 +39,7 @@ const NSString* Version=@"1.2";
 bool checkDisplayAvailability(NSArray* displaySerials);
 bool checkMode(CGDisplayModeRef,long,long);
 CGDirectDisplayID getDisplayID(NSScreen* screen);
-NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID);
+NSString* getScreenSerial(CGDirectDisplayID displayID);
 NSPoint getScreenPosition(NSScreen* screen);
 NSString* getEDIDDescriptor(NSData* edid, int descriptor, bool displayname);
 
@@ -254,7 +254,7 @@ void printInfo() {
     printf("Total: %lu\n", (unsigned long)[screens count]);
     for (NSScreen* screen in screens) {
         CGDirectDisplayID displayID = getDisplayID(screen);
-        NSString* serial = getScreenSerial(screen, displayID);
+        NSString* serial = getScreenSerial(displayID);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
         NSInteger rotation = CGDisplayRotation(displayID);
@@ -276,7 +276,7 @@ int saveArrangement(NSString* savePath) {
     [dict setObject:@"ScreenArrangement" forKey:@"About"];
     for (NSScreen* screen in screens) {
         CGDirectDisplayID displayID=getDisplayID(screen);
-        NSString* serial = getScreenSerial(screen,displayID);
+        NSString* serial = getScreenSerial(displayID);
         NSPoint position = getScreenPosition(screen);
         NSSize size = [screen frame].size;
         NSInteger rotation = CGDisplayRotation(displayID);
@@ -336,7 +336,7 @@ int loadArrangement(NSString* savePath) {
     NSMutableArray* paramStore ;
     for (NSScreen* screen in [NSScreen screens]) {
         CGDirectDisplayID displayID = getDisplayID(screen);
-        NSString* serial = getScreenSerial(screen,displayID);
+        NSString* serial = getScreenSerial(displayID);
         NSInteger rotation = CGDisplayRotation(displayID);
         /*
          1st: Find values in object store
@@ -429,7 +429,7 @@ bool checkDisplayAvailability(NSArray* displaySerials) {
     NSArray* screens = [NSScreen screens];
     for (NSScreen* screen in screens) {
         CGDirectDisplayID displayID=getDisplayID(screen);
-        NSString* serial = getScreenSerial(screen,displayID);
+        NSString* serial = getScreenSerial(displayID);
         if (![displaySerials containsObject:serial]) {
             return false;
         }
@@ -456,7 +456,7 @@ CGDirectDisplayID getDisplayID(NSScreen* screen) {
     return [[screenDescription objectForKey:@"NSScreenNumber"] unsignedIntValue];
 }
 
-NSString* getScreenSerial(NSScreen* screen, CGDirectDisplayID displayID) {
+NSString* getScreenSerial(CGDirectDisplayID displayID) {
     // In fact, the function returns vendor id concateneted with serial number
     NSString* name_edid = @"";
     NSMutableString* hwkey=[[NSMutableString alloc]init];

@@ -252,11 +252,13 @@ CGDisplayErr setRotation(NSString* rotation, CGDirectDisplayID directDisplayID) 
 void printInfo() {
     NSArray* screens = [NSScreen screens];
     printf("Total: %lu\n", (unsigned long)[screens count]);
+    NSSize size;
+    NSPoint position;
     for (NSScreen* screen in screens) {
         CGDirectDisplayID displayID = getDisplayID(screen);
         NSString* serial = getScreenSerial(displayID);
-        NSPoint position = getScreenPosition(screen);
-        NSSize size = [screen frame].size;
+        position = getScreenPosition(screen);
+        size = [screen frame].size;
         NSInteger rotation = CGDisplayRotation(displayID);
         printf("  Display %li\n", (long)displayID);
         printf("    Serial:    %s\n", [serial UTF8String]);
@@ -264,7 +266,8 @@ void printInfo() {
         printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
     }
     if(getMirrorMode()) {
-        printf("Mirror Mode: ON\n");
+        // We're not seeing all available displays.
+        // So we have to iterate over the onlineDisplayList
         CGDisplayCount numberOfOnlineDspys;
         
         CGDisplayErr onlineError = CGGetOnlineDisplayList (numberOfTotalDspys,onlineDspys,&numberOfOnlineDspys);
@@ -274,16 +277,15 @@ void printInfo() {
         for (int displayIndex = 0; displayIndex<numberOfOnlineDspys; displayIndex++) {
             if (onlineDspys[displayIndex] != CGMainDisplayID()) {
                 NSString* serial = getScreenSerial(onlineDspys[displayIndex]);
-                //NSPoint position = getScreenPosition(screen);
-                //NSSize size = [screen frame].size;
+                position.y+=size.height;
                 NSInteger rotation = CGDisplayRotation(onlineDspys[displayIndex]);
                 printf("  Display %li\n", (long)onlineDspys[displayIndex]);
                 printf("    Serial:    %s\n", [serial UTF8String]);
-                //printf("    Position:  {%i, %i}\n", (int)position.x, (int)position.y);
-                //printf("    Dimension: {%i, %i} @ %i\n", (int)size.width, (int)size.height, (int) rotation);
-                printf("   Rotation:  %i\n", (int) rotation);
+                printf("    Position:  {%i, %i} *Mirror Mode*\n", (int)position.x, (int)position.y);
+                printf("    Dimension: {%i, %i} @ %i *Mirror Mode*\n", (int)size.width, (int)size.height, (int) rotation);
             }
         }
+        printf("Mirror Mode: ON\n");
     } else {
         printf("Mirror Mode: OFF\n");
     }

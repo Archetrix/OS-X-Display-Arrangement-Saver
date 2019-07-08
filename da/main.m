@@ -401,9 +401,9 @@ int loadArrangement(NSString* savePath) {
         if (rotation != [(NSNumber*)paramStore[4] longValue]) {
             CGDisplayErr rotation_err = setRotation([NSString stringWithFormat:@"%i" ,[(NSNumber*)paramStore[4] intValue]], displayID);
             if (rotation_err != kCGErrorSuccess) {
-                printf("Failed to rotate screen %s",[serial UTF8String]);
+                printf("Failed to rotate screen %s\n",[serial UTF8String]);
             } else {
-                printf("rotating screen; ");
+                printf("Rotating screen\n");
                 needToChange++;
             }
         }
@@ -438,7 +438,7 @@ int loadArrangement(NSString* savePath) {
         CFRelease(modeList);
         if (foundNow && foundNew && modeNow != modeNew) {
             CGConfigureDisplayWithDisplayMode(config, displayID, modeNew, NULL);
-            printf("changing screen resolution; ");
+            printf("Changing screen resolution.\n");
             needToChange++;
         }
         /*
@@ -450,7 +450,7 @@ int loadArrangement(NSString* savePath) {
         printf("    New  Position:  {%i, %i}\n", [(NSNumber*)paramStore[0] intValue], [(NSNumber*)paramStore[1] intValue]);
         if ((int) position.x != [(NSNumber*)paramStore[0] intValue] || (int) position.y != [(NSNumber*)paramStore[1] intValue]) {
             CGConfigureDisplayOrigin(config, displayID, [(NSNumber*)paramStore[0] intValue], -1*[(NSNumber*)paramStore[1] intValue]);
-            printf("changing screen origin; ");
+            printf("Changing screen origin.\n");
             needToChange++;
         }
         

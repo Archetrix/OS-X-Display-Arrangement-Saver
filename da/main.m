@@ -295,11 +295,13 @@ int saveArrangement(NSString* savePath) {
     NSMutableDictionary* dict = [[NSMutableDictionary alloc] init];
     NSArray* screens = [NSScreen screens];
     [dict setObject:@"ScreenArrangement" forKey:@"About"];
+    NSPoint position;
+    NSSize size;
     for (NSScreen* screen in screens) {
         CGDirectDisplayID displayID=getDisplayID(screen);
         NSString* serial = getScreenSerial(displayID);
-        NSPoint position = getScreenPosition(screen);
-        NSSize size = [screen frame].size;
+        position = getScreenPosition(screen);
+        size = [screen frame].size;
         NSInteger rotation = CGDisplayRotation(displayID);
         NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], [NSNumber numberWithLong: rotation], nil];
         if ([dict objectForKey:serial]) {
@@ -312,6 +314,28 @@ int saveArrangement(NSString* savePath) {
         printf("Something odd is happening. Possibly duplicate identifiers. Have %i screens but %i settings to store.\n",(int)[screens count],(int)[dict count]);
     }
     if(getMirrorMode()) {
+        // We're not seeing all available displays.
+        // So we have to iterate over the onlineDisplayList
+        CGDisplayCount numberOfOnlineDspys;
+        
+        CGDisplayErr onlineError = CGGetOnlineDisplayList (numberOfTotalDspys,onlineDspys,&numberOfOnlineDspys);
+        
+        if (onlineError!=0) NSLog(@"Error in obtaining online diplay list: %d\n",onlineError);
+        
+        for (int displayIndex = 0; displayIndex<numberOfOnlineDspys; displayIndex++) {
+            if (onlineDspys[displayIndex] != CGMainDisplayID()) {
+                NSString* serial = getScreenSerial(onlineDspys[displayIndex]);
+                position.y+=size.height;
+                NSInteger rotation = CGDisplayRotation(onlineDspys[displayIndex]);
+                NSArray* a = [NSArray arrayWithObjects: [NSNumber numberWithInt:position.x], [NSNumber numberWithInt: position.y],[NSNumber numberWithInt: size.width],[NSNumber numberWithInt: size.height], [NSNumber numberWithLong: rotation], nil];
+                if ([dict objectForKey:serial]) {
+                    // Generate a warning, when the serial is already in our dictionary.
+                    printf("Warning duplicate screen identifier %s detected. Check if two or more serials are identical. Stored alignments will be incomplete.\n",[serial UTF8String]);
+                }
+                [dict setObject:a forKey:serial];
+            }
+        }
+
         [dict setObject:@"on" forKey:@"Mirror"];
     } else {
         [dict setObject:@"off" forKey:@"Mirror"];
